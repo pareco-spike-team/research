@@ -1,0 +1,20 @@
+/dist/*
+
+*.log
+*.dat
+*.out
+*.pid
+*.gz
+._*
+
+node_modules
+npm-debug.log
+
+## OSX
+.DS_Store
+
+## vscode
+.vscode
+
+##merge
+*.orig
