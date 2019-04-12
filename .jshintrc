@@ -1,0 +1,20 @@
+{
+	"node": true,
+	"esversion": 9,
+	"strict": true,
+	"curly": true,
+	"eqeqeq": true,
+	"eqnull": true,
+	"undef": true,
+	"unused": true,
+	"nocomma": true,
+	"shadow": "outer",
+	"bitwise": true,
+	"forin": true,
+	"freeze": true,
+	"futurehostile": true,
+	"latedef": "nofunc",
+	"nonbsp": true,
+	"nonew": true,
+	"globals": {}
+}
