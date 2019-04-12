@@ -1,0 +1,11 @@
+version: '3.6'
+services:
+  galnetpedia:
+    image: "neo4j:3.5"
+    container_name: galnetpedia-neo
+    ports:
+      - "7476:7474"
+      - "7689:7687"
+    volumes:
+      - $HOME/data/galnetpedia-neo:/data
+      - $HOME/data/galnetpedia-neo:/conf
