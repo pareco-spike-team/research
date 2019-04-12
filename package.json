@@ -1,0 +1,16 @@
+{
+  "name": "galnetpedia",
+  "version": "1.0.0",
+  "description": "Galnet",
+  "main": "index.js",
+  "repository": "git@github.com:pareco-spike-team/research.git",
+  "author": "Cmdr Clannad <clannad@spam.org>",
+  "license": "MIT",
+  "dependencies": {
+    "neo4j-driver": "~1.7.3",
+    "uuid": "~3.3.2"
+  },
+  "devDependencies": {
+    "jshint": "~2.10.2"
+  }
+}
