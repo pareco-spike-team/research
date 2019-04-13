@@ -10,7 +10,6 @@ const
 	* Also tag ?
 */
 
-
 function parse(fileName) {
 	const content = ("" + fs.readFileSync(fileName));
 	const rows = content.split('\n');
@@ -26,8 +25,6 @@ function parse(fileName) {
 				const tag = trimmedRow.slice(3).trim();
 				const parent = articles.current.tags.slice(-1)[0];
 				parent.subTags.push({ tag: tag });
-				//articles.current.tags.push(tag);
-				// articles.current.tags.push({ tag: trimmedRow.slice(2).trim(), subTags: [] });
 			} else if (isTag) {
 				articles.current.tags.push({ tag: trimmedRow.slice(2).trim(), subTags: [] });
 			} else if (isTitle) {

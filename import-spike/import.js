@@ -25,12 +25,21 @@ function getDriver() {
 	return driver;
 }
 
+const fixTagCasing = t =>
+	t.tag.
+		split(' ').
+		map(x => x.slice(0, 1).toUpperCase() + x.slice(1)).
+		join(' ');
+
+const caseInsensitiveRegexMatch = x => `(?i)${x.toLowerCase()}`;
+
 async function saveTags(articles) {
 	const tags = new Set();
 	articles.forEach(a => {
 		a.tags.forEach(t => {
-			tags.add(t.tag);
-			t.subTags.forEach(s => tags.add(s.tag));
+			const s = fixTagCasing(t);
+			tags.add(s);
+			t.subTags.forEach(s => tags.add(fixTagCasing(s)));
 		});
 	});
 	const driver = getDriver();
@@ -52,13 +61,13 @@ async function saveTags(articles) {
 		for (const t of a.tags) {
 			for (const s of t.subTags) {
 				let query = `
-					MATCH (t1:Tag) WHERE t1.tag = {t1}
-					MATCH (t2:Tag) WHERE t2.tag = {t2}
+					MATCH (t1:Tag) WHERE t1.tag =~ {t1}
+					MATCH (t2:Tag) WHERE t2.tag =~ {t2}
 					MERGE (t1)-[:Tag]->(t2)
 					RETURN 0`;
 				let args = {
-					t1: t.tag,
-					t2: s.tag
+					t1: caseInsensitiveRegexMatch(t.tag),
+					t2: caseInsensitiveRegexMatch(s.tag)
 				};
 				try {
 					await session.run(query, args);
@@ -83,26 +92,26 @@ async function saveArticles(articles) {
 			WITH a`;
 		let args = {
 			id: uuid(),
-			title: article.title,
-			text: article.text,
+			title: article.title.trim(),
+			text: article.text.trim(),
 			date: article.date
 		};
 		article.tags.forEach((tag, i) => {
 			const tagQuery = `
-				MATCH (t:Tag) WHERE t.tag = {tag${i}}
+				MATCH (t:Tag) WHERE t.tag =~ {tag${i}}
 				MERGE (a)-[:Tag]->(t)
 				WITH a
 			`;
 			query += tagQuery;
-			args[`tag${i}`] = tag.tag;
+			args[`tag${i}`] = caseInsensitiveRegexMatch(tag.tag);
 			tag.subTags.forEach((s, j) => {
 				const subtagQuery = `
-					MATCH (t:Tag) WHERE t.tag = {tag${i}_${j}}
+					MATCH (t:Tag) WHERE t.tag =~ {tag${i}_${j}}
 					MERGE (a)-[:Tag]->(t)
 					WITH a
 				`;
 				query += subtagQuery;
-				args[`tag${i}_${j}`] = s.tag;
+				args[`tag${i}_${j}`] = caseInsensitiveRegexMatch(s.tag);
 			});
 		});
 		query += `
@@ -117,11 +126,39 @@ async function saveArticles(articles) {
 	driver.close();
 }
 
-const articles = markdownParse(markdownFileToParse);
+function cleanTags(articles) {
+	const cleanTagList = xs => {
+		const cleaned = xs.
+			map(x => ({ ...x, tag: x.tag.split(/\s+|\.|\?[,'"´`]/).join(' ').trim() })).
+			filter(x => x.tag.length > 1);
+		return [...new Set(cleaned)];
+	};
+
+	articles.forEach(a => {
+		a.tags = cleanTagList(a.tags);
+		a.tags.forEach(t => {
+			t.subTags = cleanTagList(t.subTags);
+		});
+	});
+}
+
+async function addIndexes() {
+	const q1 = 'CALL db.index.fulltext.createNodeIndex("TextTitleIndex", ["Article"],["text", "title"])';
+	const q2 = 'CALL db.index.fulltext.createNodeIndex("TagIndex", ["Tag"],["tag"])';
+	const driver = getDriver();
+	let session = driver.session();
+	await session.run(q1, {});
+	await session.run(q2, {});
+	driver.close();
+}
 
 const p = new Promise((resolve, reject) => {
+	const articles = markdownParse(markdownFileToParse);
+	cleanTags(articles);
+
 	return saveTags(articles).
 		then(() => saveArticles(articles)).
+		then(() => addIndexes()).
 		then(resolve).
 		catch(reject);
 });
