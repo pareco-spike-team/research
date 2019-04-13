@@ -1,60 +1,15 @@
 'use strict';
 
 const
+
 	NEO_URL = "bolt://localhost:7689",
 	NEO_USER = "neo4j",
 	NEO_PWD = process.env.NEO_PWD || process.argv.slice(-1)[0],
+	markdownFileToParse = `${__dirname}/../data/Galnet_Revamp_no_HTML.txt`,
 	neo4j = require('neo4j-driver').v1,
 	uuid = require('uuid/v4'),
-	fs = require('fs');
-/*
-	How to interpret the markdown
-	# - article title
-	## - tag on article
-	### subtag
-	* Also tag ?
-*/
+	markdownParse = require('./markdownParser.js');
 
-
-function parse() {
-	const content = ("" + fs.readFileSync(`${__dirname}/../data/Galnet_Revamp_no_HTML.txt`));
-	const rows = content.split('\n');
-
-	const parsedArticles =
-		rows.reduce((articles, row) => {
-			const trimmedRow = row.trim();
-			const isSubTag = trimmedRow.startsWith('###');
-			const isTag = !isSubTag && trimmedRow.startsWith('##');
-			const isTitle = !isTag && trimmedRow.startsWith('#');
-			const isStar = trimmedRow.startsWith('* ');
-			if (isSubTag) {
-				const tag = trimmedRow.slice(3).trim();
-				const parent = articles.current.tags.slice(-1)[0];
-				parent.subTags.push({ tag: tag });
-				//articles.current.tags.push(tag);
-				// articles.current.tags.push({ tag: trimmedRow.slice(2).trim(), subTags: [] });
-			} else if (isTag) {
-				articles.current.tags.push({ tag: trimmedRow.slice(2).trim(), subTags: [] });
-			} else if (isTitle) {
-				articles.current = {
-					title: trimmedRow.slice(1).trim(),
-					text: '',
-					tags: []
-				};
-				articles.all.push(articles.current);
-			} else if (!isStar) {
-				if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedRow)) {
-					articles.current.date = trimmedRow;
-				} else {
-					articles.current.text = `${articles.current.text}\n${trimmedRow}`;
-				}
-			}
-
-			return articles;
-		}, { current: null, all: [] });
-
-	return parsedArticles.all;
-}
 
 function getDriver() {
 	const auth = neo4j.auth.basic(NEO_USER, NEO_PWD);
@@ -117,7 +72,6 @@ async function saveTags(articles) {
 	driver.close();
 }
 
-
 async function saveArticles(articles) {
 	console.log(`Saving ${articles.length} articles.`);
 	const driver = getDriver();
@@ -163,7 +117,8 @@ async function saveArticles(articles) {
 	driver.close();
 }
 
-const articles = parse();
+const articles = markdownParse(markdownFileToParse);
+
 const p = new Promise((resolve, reject) => {
 	return saveTags(articles).
 		then(() => saveArticles(articles)).
