@@ -5,5 +5,9 @@ if [ -d ~/data/galnetpedia-neo/databases ]; then
 fi
 docker-compose up -d
 # wait for neo to start up
+echo =Waiting for neo to startup =
 sleep 10
+echo = Importing data =
 node ./import.js $@
+echo = Update tags on articles =
+node ./updateArticleTags.js $@
