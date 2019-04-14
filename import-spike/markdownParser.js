@@ -7,7 +7,8 @@ const
 	# - article title
 	## - tag on article
 	### subtag
-	* Also tag ?
+	* Tag (star system)
+	    * starport
 */
 
 function parse(fileName) {
@@ -20,13 +21,19 @@ function parse(fileName) {
 			const isSubTag = trimmedRow.startsWith('###');
 			const isTag = !isSubTag && trimmedRow.startsWith('##');
 			const isTitle = !isTag && trimmedRow.startsWith('#');
-			const isStar = trimmedRow.startsWith('* ');
+			const isStation = row.startsWith('    *');
+			const isSystem = !isStation && /^\* \w+/.test(trimmedRow);
 			if (isSubTag) {
 				const tag = trimmedRow.slice(3).trim();
 				const parent = articles.current.tags.slice(-1)[0];
 				parent.subTags.push({ tag: tag });
 			} else if (isTag) {
 				articles.current.tags.push({ tag: trimmedRow.slice(2).trim(), subTags: [] });
+			} else if (isSystem) {
+				articles.current.tags.push({ tag: trimmedRow.slice(2).trim(), subTags: [], type: 'system' });
+			} else if (isStation) {
+				const parent = articles.current.tags.slice(-1)[0];
+				parent.subTags.push({ tag: trimmedRow.slice(2).trim() });
 			} else if (isTitle) {
 				articles.current = {
 					title: trimmedRow.slice(1).trim(),
@@ -34,7 +41,7 @@ function parse(fileName) {
 					tags: []
 				};
 				articles.all.push(articles.current);
-			} else if (!isStar) {
+			} else {
 				if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedRow)) {
 					articles.current.date = trimmedRow;
 				} else {

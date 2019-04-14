@@ -46,7 +46,8 @@ async function saveTags(articles) {
 	let session = driver.session();
 	for (const t of tags.values()) {
 		let query = `
-			MERGE (t:Tag { tag: {tag} }) RETURN t`;
+			MERGE (t:Tag { tag: {tag} }) RETURN t
+		`;
 		let args = {
 			tag: t
 		};
