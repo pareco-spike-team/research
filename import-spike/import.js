@@ -31,7 +31,7 @@ const fixTagCasing = t =>
 		map(x => x.slice(0, 1).toUpperCase() + x.slice(1)).
 		join(' ');
 
-const caseInsensitiveRegexMatch = x => `(?i)${x.toLowerCase()}`;
+const caseInsensitiveRegexMatch = x => `(?muis)${x.toLowerCase()}`;
 
 async function saveTags(articles) {
 	const tags = new Set();
