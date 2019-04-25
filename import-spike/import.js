@@ -1,28 +1,14 @@
 'use strict';
 
 const
-
-	NEO_URL = "bolt://localhost:7689",
-	NEO_USER = "neo4j",
-	NEO_PWD = process.env.NEO_PWD || process.argv.slice(-1)[0],
+	neo = require('./neoHelper.js'),
 	markdownFileToParse = `${__dirname}/../data/Galnet_Revamp_no_HTML.txt`,
-	neo4j = require('neo4j-driver').v1,
-	uuid = require('uuid/v4'),
+	shortId = require('shortid'),
 	markdownParse = require('./markdownParser.js');
 
 
 function getDriver() {
-	const auth = neo4j.auth.basic(NEO_USER, NEO_PWD);
-	const neo4jConfig = { connectionPoolSize: 10 };
-	let driver = neo4j.driver(NEO_URL, auth, neo4jConfig);
-
-	driver.onError = (e) => {
-		console.error(e);
-	};
-	driver.onCompleted = () => {
-	};
-
-	return driver;
+	return neo.getDriver();
 }
 
 const fixTagCasing = t =>
@@ -46,10 +32,11 @@ async function saveTags(articles) {
 	let session = driver.session();
 	for (const t of tags.values()) {
 		let query = `
-			MERGE (t:Tag { tag: {tag} }) RETURN t
+			MERGE (t:Tag { tag: {tag} }) ON CREATE SET t.id = {id} RETURN t
 		`;
 		let args = {
-			tag: t
+			tag: t,
+			id: shortId.generate()
 		};
 		try {
 			await session.run(query, args);
@@ -92,7 +79,7 @@ async function saveArticles(articles) {
 			CREATE (a:Article { id: {id}, title: {title}, text: {text}, date: {date} })
 			WITH a`;
 		let args = {
-			id: uuid(),
+			id: shortId.generate(),
 			title: article.title.trim(),
 			text: article.text.trim(),
 			date: article.date

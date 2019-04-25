@@ -18,3 +18,8 @@ npm-debug.log
 
 ##merge
 *.orig
+
+import-spike/dist/*
+import-spike/elm-stuff/*
+dist/*
+config.dev.json
