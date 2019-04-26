@@ -46,8 +46,7 @@ type Msg
 
 
 type alias Model =
-    { tags : Tags
-    , articles : Articles
+    { nodes : Nodes
     , tagFilter : String
     , articleFilter : String
     , drag : Maybe Drag
@@ -71,23 +70,34 @@ type alias Tags =
     Dict Id Tag
 
 
-type alias Tag =
-    { id : String
-    , tag : String
-    }
-
-
 type alias Articles =
     Dict Id Article
 
 
+type alias Base a =
+    { a | id : String, index : Int }
+
+
+type alias Tag =
+    Base { tag : String }
+
+
 type alias Article =
-    { id : String
-    , date : String
-    , title : String
-    , text : String
-    , tags : List Tag
-    }
+    Base
+        { date : String
+        , title : String
+        , text : String
+        , tags : List Tag
+        }
+
+
+type Node
+    = ArticleNode Article
+    | TagNode Tag
+
+
+type alias Nodes =
+    Dict Id Node
 
 
 type RemoteData a
@@ -128,14 +138,12 @@ init _ =
     let
         model : Model
         model =
-            { tags = Dict.empty
-            , articles = Dict.empty
+            { nodes = Dict.empty
             , tagFilter = "Duradrive"
             , articleFilter = ""
             , drag = Nothing
             , simulation = Force.simulation []
-            , graph =
-                buildGraph { tags = Dict.empty, articles = Dict.empty }
+            , graph = buildGraph Dict.empty
             }
     in
     ( model, search model )
@@ -145,8 +153,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.drag of
         Nothing ->
-            -- This allows us to save resources, as if the simulation is done, there is no point in subscribing
-            -- to the rAF.
             if Force.isCompleted model.simulation then
                 Sub.none
 
@@ -276,53 +282,88 @@ updateContextWithValue nodeCtx value =
 articleSearchResult : Model -> List Article -> ( Model, Cmd Msg )
 articleSearchResult model articlesFound =
     let
-        tags : Tags
-        tags =
+        nextId =
+            model.nodes |> Dict.keys |> List.length
+
+        newTags : List Tag
+        newTags =
             articlesFound
                 |> List.foldl (\a b -> a.tags ++ b) []
-                |> List.map (\x -> ( x.id, x ))
-                |> Dict.fromList
-                |> Dict.union model.tags
+                |> List.foldl (\t dict -> Dict.insert t.id t dict) Dict.empty
+                |> Dict.values
+                |> List.filter (\x -> not <| Dict.member x.id model.nodes)
+                |> List.indexedMap (\idx x -> { id = x.id, index = idx + nextId, tag = x.tag })
 
-        updateTags : List Tag -> List Tag
-        updateTags xs =
-            xs |> List.map (\t -> Dict.get t.id model.tags |> Maybe.withDefault t)
+        nodesWithNewTags : Nodes
+        nodesWithNewTags =
+            List.foldl (\tag dict -> Dict.insert tag.id (TagNode tag) dict) model.nodes newTags
 
-        updateArticleDictionary : Article -> Dict Id Article -> Dict Id Article
-        updateArticleDictionary x dict =
-            Dict.update
-                x.id
-                (\existing ->
-                    case existing of
-                        Nothing ->
-                            { x | tags = updateTags x.tags }
-                                |> Just
+        getTagFromNode : Node -> Maybe Tag
+        getTagFromNode n =
+            case n of
+                TagNode t ->
+                    Just t
 
-                        Just e ->
-                            { e | tags = updateTags e.tags }
-                                |> Just
-                )
-                dict
+                ArticleNode _ ->
+                    Nothing
 
-        articles =
+        updateTags tags =
+            tags
+                |> List.map (\t -> Dict.get t.id nodesWithNewTags)
+                |> Maybe.Extra.values
+                |> List.map (\node -> getTagFromNode node)
+                |> Maybe.Extra.values
+
+        newArticles =
             articlesFound
-                |> List.foldl updateArticleDictionary model.articles
+                |> List.filter (\x -> not <| Dict.member x.id model.nodes)
+                |> List.indexedMap
+                    (\idx article ->
+                        { article | index = idx + nextId + List.length newTags }
+                    )
+
+        nodesWithNewArticles : Nodes
+        nodesWithNewArticles =
+            List.foldl (\article dict -> Dict.insert article.id (ArticleNode article) dict) nodesWithNewTags newArticles
+
+        updatedNodes : Nodes
+        updatedNodes =
+            Dict.values nodesWithNewArticles
+                |> List.map
+                    (\node ->
+                        case node of
+                            TagNode n ->
+                                ( n.id, TagNode n )
+
+                            ArticleNode a ->
+                                ( a.id, ArticleNode { a | tags = updateTags a.tags } )
+                    )
+                |> Dict.fromList
 
         link { from, to } =
             ( from, to )
 
         graph =
-            buildGraph { tags = tags, articles = articles }
+            buildGraph updatedNodes
 
         forces =
-            [ Force.links <| List.map link <| Graph.edges graph
-            , Force.manyBody <| List.map .id <| Graph.nodes graph
-            , Force.center (w / 2) (h / 2)
+            [ Force.center (w / 2) (h / 2)
+            , Force.customLinks 1 <|
+                List.map (\x -> { source = x.from, target = x.to, distance = 150, strength = Just 0.2 }) <|
+                    Graph.edges graph
+            , Force.manyBodyStrength 0.7 <| List.map .id <| Graph.nodes graph
             ]
+
+        _ =
+            Debug.log "nextId" nextId
+                |> (\_ -> Debug.log "newTags" newTags)
+                |> (\_ -> Debug.log "nodesWithNewTags" nodesWithNewTags)
+                |> (\_ -> Debug.log "newArticles" newArticles)
+                |> (\_ -> Debug.log "nodesWithNewArticles" nodesWithNewArticles)
+                |> (\_ -> Debug.log "updatedNodes" updatedNodes)
     in
     ( { model
-        | tags = tags
-        , articles = articles
+        | nodes = updatedNodes
         , simulation = Force.simulation forces
         , graph = graph
       }
@@ -334,68 +375,51 @@ type alias BuildGraphTemp a =
     { idx : Int, id : Id, value : a }
 
 
-buildGraph : { a | tags : Tags, articles : Articles } -> Graph Entity ()
-buildGraph { tags, articles } =
+buildGraph : Nodes -> Graph Entity ()
+buildGraph nodes =
     let
-        _ =
-            Debug.log "_tags_" tags
-
-        _ =
-            Debug.log "_articles_" articles
-
-        toTemp : Int -> Id -> b -> BuildGraphTemp b
-        toTemp idx id value =
-            { idx = idx, id = id, value = value }
-
-        tags_ =
-            Dict.values tags
-                |> List.indexedMap (\idx x -> ( x.id, toTemp idx x.id x ))
-                |> Dict.fromList
-
-        tagsLength =
-            tags_ |> Dict.keys |> List.length
-
-        articles_ =
-            Dict.values articles
-                |> List.indexedMap (\idx x -> ( x.id, toTemp (tagsLength + idx) x.id x ))
-                |> Dict.fromList
-
         stringList : List String
         stringList =
-            (tags_ |> Dict.values |> List.map .id) ++ (articles_ |> Dict.values |> List.map .id)
+            nodes
+                |> Dict.values
+                |> List.map
+                    (\n ->
+                        case n of
+                            TagNode x ->
+                                ( x.index, x.id )
+
+                            ArticleNode x ->
+                                ( x.index, x.id )
+                    )
+                |> List.sortBy Tuple.first
+                |> List.map Tuple.second
 
         nodegraph : List ( NodeId, NodeId )
         nodegraph =
-            articles_
+            nodes
                 |> Dict.values
                 |> List.map
-                    (\a ->
-                        let
-                            xs : List Tag
-                            xs =
-                                a.value.tags
-                        in
-                        xs
-                            |> List.map
-                                (\t ->
-                                    let
-                                        idx =
-                                            Dict.get t.id tags_ |> Maybe.Extra.unwrap -1 (\x -> x.idx)
-                                    in
-                                    ( a.idx, idx )
-                                )
+                    (\n ->
+                        case n of
+                            TagNode x ->
+                                []
+
+                            ArticleNode x ->
+                                let
+                                    xs : List Tag
+                                    xs =
+                                        x.tags
+                                in
+                                xs
+                                    |> List.map
+                                        (\t ->
+                                            ( x.index, t.index )
+                                        )
                     )
                 |> List.foldl (\a b -> a ++ b) []
-
-        _ =
-            Debug.log "_stringList_" stringList
-
-        _ =
-            Debug.log "_nodegraph_" nodegraph
     in
     Graph.fromNodeLabelsAndEdgePairs stringList nodegraph
         |> Graph.mapContexts initializeNode
-        |> Debug.log "__graph__"
 
 
 
@@ -447,7 +471,20 @@ onMouseDown node =
     Mouse.onDown (.clientPos >> DragStart node.id)
 
 
-nodeElement node =
+nodeElement nodes node =
+    let
+        txt =
+            Dict.get node.label.value nodes
+                |> Maybe.Extra.unwrap node.label.value
+                    (\x ->
+                        case x of
+                            TagNode y ->
+                                y.tag
+
+                            ArticleNode y ->
+                                y.title
+                    )
+    in
     [ circle
         [ InEm.r 2
         , fill (Fill (Color.rgba 0 0 0.95 1.0))
@@ -464,9 +501,11 @@ nodeElement node =
         , InPx.x node.label.x
         , InPx.y node.label.y
         , textAnchor AnchorMiddle
+        , fill (Fill Color.black)
+        , color Color.black
         , stroke (Color.rgba 0.9 0.9 0.92 0.9)
         ]
-        [ text node.label.value ]
+        [ text txt ]
     ]
 
 
@@ -482,7 +521,7 @@ drawGraph model =
         nodes : List (Svg Msg)
         nodes =
             Graph.nodes model.graph
-                |> List.map nodeElement
+                |> List.map (nodeElement model.nodes)
                 |> List.map (g [ class [ "nodes" ] ])
     in
     svg [ viewBox 0 0 w h ]
@@ -542,7 +581,12 @@ tagListDecoder =
 
 tagDecoder : Decoder Tag
 tagDecoder =
-    Decode.succeed Tag
+    let
+        ctor : String -> String -> Tag
+        ctor id tag =
+            { id = id, index = -1, tag = tag }
+    in
+    Decode.succeed ctor
         |> required "id" string
         |> required "tag" string
 
@@ -554,7 +598,12 @@ articleListDecoder =
 
 articleDecoder : Decoder Article
 articleDecoder =
-    Decode.succeed Article
+    let
+        ctor : String -> String -> String -> String -> List Tag -> Article
+        ctor id date title text tags =
+            { id = id, index = -1, date = date, title = title, text = text, tags = tags }
+    in
+    Decode.succeed ctor
         |> required "id" string
         |> required "date" string
         |> required "title" string
