@@ -1,7 +1,7 @@
 "use strict";
 
 const
-	config = require("./config.js"),
+	config = require("../config.js"),
 	webApp = require("./app.js")(config);
 
 const

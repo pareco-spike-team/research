@@ -55,7 +55,7 @@ function setupRoutes(app, config) {
 		if (ignore.test(req.originalUrl)) {
 			next();
 		} else {
-			const path = Path.join(__dirname, './dist/index.html');
+			const path = Path.join(__dirname, '../dist/index.html');
 			res.sendFile(path);
 		}
 	});

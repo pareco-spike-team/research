@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	{ getDriver, runQuery } = require('../neoHelper.js');
+	{ getDriver, runQuery } = require('../../util/neoHelper.js');
 
 async function searchByTag(filter) {
 	const driver = getDriver();

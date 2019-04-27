@@ -7,11 +7,12 @@
   "author": "Cmdr Clannad <clannad@spam.org>",
   "license": "MIT",
   "scripts": {
+    "preinstall_packages": "npm install -g yarn@1.15.2",
     "install_packages": "yarn install",
-    "precopy": "yarn run install_packages",
-    "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free-webfonts/webfonts/. ./import-spike/dist/fontawesome/",
-    "prebuild": "yarn run copy && cp ./import-spike/src/index.html ./import-spike/dist/index.html",
-    "build": "cd import-spike && ../node_modules/.bin/elm make ./src/Main.elm --output=./dist/galnetpedia.js --debug"
+    "precopy": "yarn run install_packages && if [ -d './dist' ]; then rm -Rf ./dist; fi  && mkdir dist",
+    "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free-webfonts/webfonts/. ./dist/fontawesome/",
+    "prebuild": "yarn run copy && cp ./client/src/index.html ./dist/index.html",
+    "build": "./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js --debug"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free-webfonts": "~1.0.9",

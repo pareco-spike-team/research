@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	config = require('./config.js'),
+	config = require('../config.js'),
 	neo4j = require('neo4j-driver').v1;
 
 

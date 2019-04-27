@@ -1,21 +1,16 @@
 'use strict';
 
 const
-	path = require('path');
+	Path = require('path');
 
 const sendIndexFile = (req, res) => {
-	res.sendFile(path.join(__dirname, '../dist/index.html'));
+	res.sendFile(Path.join(__dirname, '../../dist/index.html'));
 };
 
 const addRoutes = (router) => {
 	router.get("/", sendIndexFile);
 	router.use('/', require('./api.js')());
 };
-
-
-// function errorHandler(err, req, res, next) {
-// 	res.status(err.errorCode).json({ success: false, data: { message: err.message, route: err.route } });
-// }
 
 function printRoutes(router) {
 	const printRoute = (r) => {
@@ -36,13 +31,12 @@ function printRoutes(router) {
 }
 
 module.exports = function(config, app) {
-	var express = require('express');
-	var router = express.Router();
-
+	const express = require('express');
+	const router = express.Router();
+	const staticFolder = Path.join(__dirname, "..", "..", "dist");
 	addRoutes(router);
-	app.use(express.static('./dist'));
+	app.use(express.static(staticFolder));
 	app.use(router);
-	// app.use(errorHandler);
 
 	printRoutes(router);
 };
