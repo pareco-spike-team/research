@@ -18,11 +18,11 @@ import Json.Decode.Pipeline exposing (optional, required)
 import Maybe.Extra
 import Time
 import TypedSvg exposing (circle, g, line, rect, svg, text_, title)
-import TypedSvg.Attributes exposing (class, color, fill, stroke, textAnchor, viewBox)
+import TypedSvg.Attributes exposing (class, color, fill, fontFamily, lengthAdjust, stroke, textAnchor, viewBox)
 import TypedSvg.Attributes.InEm as InEm
 import TypedSvg.Attributes.InPx as InPx exposing (cx, cy, r, strokeWidth, x1, x2, y1, y2)
 import TypedSvg.Core exposing (Attribute, Svg, text)
-import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..))
+import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), LengthAdjust(..))
 
 
 w : Float
@@ -428,7 +428,11 @@ buildGraph nodes =
 
 view : Model -> Html Msg
 view model =
-    div [ style "padding" "0.5em 0.5em", style "background-color" "#D2D5DA" ]
+    div
+        [ style "background-color" "#D2D5DA"
+        , style "padding" "0.5em"
+        , style "padding-top" "0"
+        ]
         [ searchBox model
         , drawGraph model
         ]
@@ -436,12 +440,54 @@ view model =
 
 searchBox : Model -> Html Msg
 searchBox model =
-    div [ style "display" "flex", style "flex-direction" "row" ]
+    let
+        {--
+select:focus {
+outline: none;
+}
+    --}
+        inputStyle =
+            [ ( "padding", "0.5em" ), ( "line-height", "4em" ), ( "border", "0" ), ( "border-radius", "5px" ) ]
+                |> List.map (\( a, b ) -> style a b)
+    in
+    form [ onSubmit SubmitSearch ]
         [ div
-            [ style "flex-grow" "1", style "background-color" "#FFFFFF" ]
-            [ form [ onSubmit SubmitSearch ]
-                [ input [ type_ "search", placeholder "type search query", autofocus True, value model.tagFilter, onInput TagFilterInput ] []
-                , input [ type_ "submit" ] [ text "Search" ]
+            [ style "display" "flex"
+            , style "flex-direction" "row"
+            , style "background-color" "#E8E8EA"
+            , style "margin-bottom" "1em"
+            , style "padding" "0.5em"
+            ]
+            [ div
+                [ style "flex-grow" "1"
+                , style "padding" "0.5em"
+                ]
+                [ div
+                    [ style "display" "flex"
+                    , style "flex-direction" "row"
+                    , style "background-color" "white"
+                    , style "border-radius" "5px"
+                    ]
+                    [ span inputStyle [ text " $" ]
+                    , input
+                        ([ type_ "search"
+                         , placeholder "type search query"
+                         , autofocus True
+                         , value model.tagFilter
+                         , onInput TagFilterInput
+                         , style "border" "0"
+                         , style "flex-grow" "1"
+                         ]
+                            ++ inputStyle
+                        )
+                        []
+                    ]
+                ]
+            , div
+                [ style "padding" "0.5em"
+                , style "line-height" "4em"
+                ]
+                [ input [ type_ "submit", style "border" "0", value "Search" ] []
                 ]
             ]
         ]
@@ -497,9 +543,12 @@ nodeElement nodes node =
         [ title [] [ text node.label.value ]
         ]
     , text_
-        [ InEm.fontSize 0.55
+        [ InEm.fontSize 0.8
+        , fontFamily [ "Helvetica Neue", "Helvetica", "Arial", "sans-serif" ]
         , InPx.x node.label.x
         , InPx.y node.label.y
+        , InEm.textLength 3.95
+        , lengthAdjust LengthAdjustSpacingAndGlyphs
         , textAnchor AnchorMiddle
         , fill (Fill Color.black)
         , color Color.black
@@ -524,8 +573,10 @@ drawGraph model =
                 |> List.map (nodeElement model.nodes)
                 |> List.map (g [ class [ "nodes" ] ])
     in
-    svg [ viewBox 0 0 w h ]
-        (edges :: nodes)
+    div [ style "background-color" "#FAFAFA", style "border-radius" "5px" ]
+        [ svg [ viewBox 0 0 w h ]
+            (edges :: nodes)
+        ]
 
 
 
