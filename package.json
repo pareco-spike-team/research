@@ -9,13 +9,13 @@
   "scripts": {
     "preinstall_packages": "npm install -g yarn@1.15.2",
     "install_packages": "yarn install",
-    "precopy": "yarn run install_packages && if [ -d './dist' ]; then rm -Rf ./dist; fi  && mkdir dist",
-    "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free-webfonts/webfonts/. ./dist/fontawesome/",
+    "precopy": "yarn run install_packages && if [ -d './dist' ]; then rm -Rf ./dist; fi && mkdir -p dist/fontawesome",
+    "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free/. ./dist/fontawesome/",
     "prebuild": "yarn run copy && cp ./client/src/index.html ./dist/index.html",
     "build": "./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js --debug"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free-webfonts": "~1.0.9",
+    "@fortawesome/fontawesome-free": "~5.8.1",
     "an-array-of-english-words": "~1.3.1",
     "body-parser": "~1.18.3",
     "compression": "~1.7.4",

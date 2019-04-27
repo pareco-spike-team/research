@@ -440,16 +440,11 @@ view model =
 
 searchBox : Model -> Html Msg
 searchBox model =
-    let
-        {--
+    {--
 select:focus {
 outline: none;
 }
     --}
-        inputStyle =
-            [ ( "padding", "0.5em" ), ( "line-height", "4em" ), ( "border", "0" ), ( "border-radius", "5px" ) ]
-                |> List.map (\( a, b ) -> style a b)
-    in
     form [ onSubmit SubmitSearch ]
         [ div
             [ style "display" "flex"
@@ -460,7 +455,7 @@ outline: none;
             ]
             [ div
                 [ style "flex-grow" "1"
-                , style "padding" "0.5em"
+                , style "padding" "0.1em"
                 ]
                 [ div
                     [ style "display" "flex"
@@ -468,26 +463,40 @@ outline: none;
                     , style "background-color" "white"
                     , style "border-radius" "5px"
                     ]
-                    [ span inputStyle [ text " $" ]
+                    [ span
+                        [ style "padding" "0.5em"
+                        , style "line-height" "2em"
+                        , style "border" "0"
+                        ]
+                        [ i [ class [ "fas fa-dollar-sign" ] ] [] ]
                     , input
-                        ([ type_ "search"
-                         , placeholder "type search query"
-                         , autofocus True
-                         , value model.tagFilter
-                         , onInput TagFilterInput
-                         , style "border" "0"
-                         , style "flex-grow" "1"
-                         ]
-                            ++ inputStyle
-                        )
+                        [ type_ "search"
+                        , placeholder "type search query"
+                        , autofocus True
+                        , value model.tagFilter
+                        , onInput TagFilterInput
+                        , style "flex-grow" "1"
+                        , style "font-size" "1.2em"
+                        , style "padding-bottom" "0.3em"
+                        , style "border" "0"
+                        , style "border-radius" "5px"
+                        ]
                         []
                     ]
                 ]
             , div
                 [ style "padding" "0.5em"
-                , style "line-height" "4em"
+                , style "align-self" "center"
+                , style "background-color" "#E8E8EA"
+                , style "cursor" "pointer"
                 ]
-                [ input [ type_ "submit", style "border" "0", value "Search" ] []
+                [ button
+                    [ type_ "submit"
+                    , value "Search"
+                    , style "border" "0"
+                    , style "background-color" "#E8E8EA"
+                    ]
+                    [ i [ class [ "fa-2x", "fas fa-play" ] ] [] ]
                 ]
             ]
         ]
@@ -536,11 +545,12 @@ nodeElement nodes node =
         , fill (Fill (Color.rgba 0 0 0.95 1.0))
         , stroke (Color.rgba 0 0 0.8 1.0)
         , strokeWidth 2
-        , onMouseDown node
         , cx node.label.x
         , cy node.label.y
+        , style "cursor" "pointer"
+        , onMouseDown node
         ]
-        [ title [] [ text node.label.value ]
+        [ title [] [ text txt ]
         ]
     , text_
         [ InEm.fontSize 0.8
@@ -553,6 +563,8 @@ nodeElement nodes node =
         , fill (Fill Color.black)
         , color Color.black
         , stroke (Color.rgba 0.9 0.9 0.92 0.9)
+        , style "cursor" "pointer"
+        , onMouseDown node
         ]
         [ text txt ]
     ]
