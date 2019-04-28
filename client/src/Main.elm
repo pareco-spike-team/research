@@ -9,7 +9,7 @@ import Force exposing (State)
 import Graph exposing (Edge, Graph, Node, NodeContext, NodeId)
 import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, placeholder, style, type_, value)
-import Html.Events exposing (onDoubleClick, onInput, onMouseDown, onSubmit)
+import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import HttpBuilder exposing (..)
@@ -38,9 +38,11 @@ h =
 
 type Msg
     = ArticleSearchResult (Result Http.Error (List Article))
+    | AllTags (Result Http.Error (List Tag))
     | TagFilterInput String
     | SubmitSearch
     | GetRelated NodeId
+    | ShowNode NodeId
     | DragStart NodeId ( Float, Float )
     | DragAt ( Float, Float )
     | DragEnd ( Float, Float )
@@ -49,6 +51,8 @@ type Msg
 
 type alias Model =
     { nodes : Nodes
+    , showNode : Maybe Node
+    , allTags : List Tag
     , tagFilter : String
     , articleFilter : String
     , drag : Maybe Drag
@@ -141,6 +145,8 @@ init _ =
         model : Model
         model =
             { nodes = Dict.empty
+            , showNode = Nothing
+            , allTags = []
             , tagFilter = "winking cat"
             , articleFilter = ""
             , drag = Nothing
@@ -148,7 +154,7 @@ init _ =
             , graph = buildGraph Dict.empty
             }
     in
-    ( model, search model )
+    ( model, Cmd.batch [ search model, getAllTags ] )
 
 
 subscriptions : Model -> Sub Msg
@@ -178,6 +184,12 @@ update msg model =
         SubmitSearch ->
             ( model, search model )
 
+        AllTags (Ok tags) ->
+            ( { model | allTags = tags }, Cmd.none )
+
+        AllTags (Err e) ->
+            ( model, Cmd.none )
+
         ArticleSearchResult (Ok articles) ->
             articleSearchResult model articles
 
@@ -200,6 +212,15 @@ update msg model =
 
                 Just (ArticleNode x) ->
                     ( model, getTagsForArticle x )
+
+        ShowNode index ->
+            let
+                node =
+                    model.graph
+                        |> Graph.get index
+                        |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
+            in
+            ( { model | showNode = node }, Cmd.none )
 
         Tick t ->
             case model.drag of
@@ -469,8 +490,55 @@ view model =
         , style "padding-top" "0"
         ]
         [ searchBox model
-        , drawGraph model
+        , div [ style "display" "flex", style "flex-direction" "row" ]
+            [ div [ style "flex-grow" "1", style "min-width" "75%" ] [ drawGraph model ]
+            , Maybe.Extra.unwrap (text "")
+                (\nodeToShow ->
+                    div
+                        [ style "background-color" "#FAFAFA"
+                        , style "border-radius" "5px"
+                        , style "padding" "0.5em"
+                        , style "margin-left" "0.8em"
+                        , style "margin-right" "0.3em"
+                        , style "width" "25%"
+                        ]
+                        [ showNode model.nodes nodeToShow ]
+                )
+                model.showNode
+            ]
         ]
+
+
+showNode : Nodes -> Node -> Html Msg
+showNode nodes node =
+    case node of
+        TagNode n ->
+            div []
+                [ span [ style "font-weight" "bold" ] [ text "Tag:" ]
+                , p [] []
+                , span [] [ text n.tag ]
+                ]
+
+        ArticleNode n ->
+            let
+                theText =
+                    [ text n.text ]
+            in
+            div
+                []
+                [ div [ style "font-weight" "bold" ] [ text n.title ]
+                , p [] []
+                , span [] theText
+                , p [] []
+                , div [] [ text "Tags: " ]
+                , div []
+                    (n.tags
+                        |> List.map (\x -> x.tag)
+                        |> List.sort
+                        |> List.map (\x -> span [] [ text x ])
+                        |> List.intersperse (br [] [])
+                    )
+                ]
 
 
 searchBox : Model -> Html Msg
@@ -618,6 +686,7 @@ nodeElement nodes node =
         , cy node.label.y
         , style "cursor" "pointer"
         , onMouseDown node
+        , onClick <| ShowNode node.id
         , onDoubleClick <| GetRelated node.id
         ]
         [ title [] [ text fullTitle ]
@@ -635,6 +704,7 @@ nodeElement nodes node =
         , stroke textColor
         , style "cursor" "pointer"
         , onMouseDown node
+        , onClick <| ShowNode node.id
         , onDoubleClick <| GetRelated node.id
         ]
         [ text trimmedTitle ]
@@ -664,6 +734,20 @@ drawGraph model =
 
 
 {----}
+
+
+getAllTags : Cmd Msg
+getAllTags =
+    let
+        allTagsDecoder : Decoder (List Tag)
+        allTagsDecoder =
+            Decode.list (field "tag" tagDecoder)
+    in
+    HttpBuilder.get "/api/tags"
+        |> withHeader "Content-Type" "application/json"
+        |> withExpectJson allTagsDecoder
+        -- |> withTimeout (10 * Time.second)
+        |> send AllTags
 
 
 search : Model -> Cmd Msg
