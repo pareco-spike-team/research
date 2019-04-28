@@ -183,27 +183,12 @@ update msg model =
             ( model, Cmd.none )
 
         Tick t ->
-            let
-                ( newState, list_ ) =
-                    Force.tick model.simulation <| List.map .label <| Graph.nodes model.graph
-
-                fixNan : Float -> Float
-                fixNan x =
-                    if isNaN x then
-                        h / 2
-
-                    else
-                        x
-
-                list =
-                    list_
-                        |> List.map
-                            (\x ->
-                                { x | vx = fixNan x.vx, vy = fixNan x.vy, x = fixNan x.x, y = fixNan x.y }
-                            )
-            in
             case model.drag of
                 Nothing ->
+                    let
+                        ( newState, list ) =
+                            Force.tick model.simulation <| List.map .label <| Graph.nodes model.graph
+                    in
                     ( { model
                         | graph = updateGraphWithList model.graph list
                         , simulation = newState
@@ -212,10 +197,19 @@ update msg model =
                     )
 
                 Just { current, index } ->
+                    let
+                        draggedNodePos =
+                            model.graph
+                                |> Graph.get index
+                                |> Maybe.Extra.unwrap current (\x -> ( x.node.label.x, x.node.label.y ))
+
+                        ( newState, list ) =
+                            Force.tick model.simulation <| List.map .label <| Graph.nodes model.graph
+                    in
                     ( { model
                         | graph =
                             Graph.update index
-                                (Maybe.map (updateNode current))
+                                (Maybe.map (updateNode draggedNodePos))
                                 (updateGraphWithList model.graph list)
                         , simulation = newState
                       }
@@ -223,14 +217,27 @@ update msg model =
                     )
 
         DragStart index xy ->
+            let
+                pos =
+                    Graph.get index model.graph
+                        |> Maybe.Extra.unwrap ( 0, 0 ) (\x -> ( x.node.label.x, x.node.label.y ))
+            in
             ( { model | drag = Just (Drag xy xy index) }, Cmd.none )
 
         DragAt xy ->
             case model.drag of
                 Just { start, index } ->
+                    let
+                        ( deltax, deltay ) =
+                            ( Tuple.first xy - Tuple.first start, Tuple.second xy - Tuple.second start )
+
+                        newPos =
+                            Graph.get index model.graph
+                                |> Maybe.Extra.unwrap ( deltax, deltay ) (\x -> ( x.node.label.x + deltax, x.node.label.y + deltay ))
+                    in
                     ( { model
                         | drag = Just (Drag xy xy index)
-                        , graph = Graph.update index (Maybe.map (updateNode xy)) model.graph
+                        , graph = Graph.update index (Maybe.map (updateNode newPos)) model.graph
                       }
                     , Cmd.none
                     )
@@ -241,9 +248,17 @@ update msg model =
         DragEnd xy ->
             case model.drag of
                 Just { start, index } ->
+                    let
+                        ( deltax, deltay ) =
+                            ( Tuple.first xy - Tuple.first start, Tuple.second xy - Tuple.second start )
+
+                        newPos =
+                            Graph.get index model.graph
+                                |> Maybe.Extra.unwrap ( deltax, deltay ) (\x -> ( x.node.label.x + deltax, x.node.label.y + deltay ))
+                    in
                     ( { model
                         | drag = Nothing
-                        , graph = Graph.update index (Maybe.map (updateNode xy)) model.graph
+                        , graph = Graph.update index (Maybe.map (updateNode newPos)) model.graph
                       }
                     , Cmd.none
                     )
