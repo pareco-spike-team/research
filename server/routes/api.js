@@ -47,7 +47,7 @@ async function getTagsForArticle(articleId) {
 	const driver = getDriver();
 	const s = driver.session();
 	const query =
-		"MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} RETURN tag";
+		"MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} RETURN article, tag";
 	const result = await runQuery(s)(query)({ articleId: articleId });
 	driver.close();
 	return result;
@@ -57,7 +57,7 @@ async function getArticlesWithTag(tagId) {
 	const driver = getDriver();
 	const s = driver.session();
 	const query =
-		"MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE tag.id = {tagId} RETURN article";
+		"MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE tag.id = {tagId} RETURN article, tag";
 	const result = await runQuery(s)(query)({ tagId: tagId });
 	driver.close();
 	return result;
@@ -93,7 +93,7 @@ module.exports = () => {
 	// router.post('/api/tags', api.createTag);
 
 	router.get('/api/articles', api.searchArticles);
-	router.get('/api/article/:articleId/tags', api.getTagsForArticle);
+	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
 
 
 	return router;

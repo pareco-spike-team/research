@@ -9,12 +9,13 @@ import Force exposing (State)
 import Graph exposing (Edge, Graph, Node, NodeContext, NodeId)
 import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, placeholder, style, type_, value)
-import Html.Events exposing (onInput, onMouseDown, onSubmit)
+import Html.Events exposing (onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import HttpBuilder exposing (..)
 import Json.Decode as Decode exposing (Decoder, field, string)
 import Json.Decode.Pipeline exposing (optional, required)
+import List.Extra
 import Maybe.Extra
 import Time
 import TypedSvg exposing (circle, g, line, rect, svg, text_, title)
@@ -39,6 +40,7 @@ type Msg
     = ArticleSearchResult (Result Http.Error (List Article))
     | TagFilterInput String
     | SubmitSearch
+    | GetRelated NodeId
     | DragStart NodeId ( Float, Float )
     | DragAt ( Float, Float )
     | DragEnd ( Float, Float )
@@ -139,7 +141,7 @@ init _ =
         model : Model
         model =
             { nodes = Dict.empty
-            , tagFilter = "Duradrive"
+            , tagFilter = "winking cat"
             , articleFilter = ""
             , drag = Nothing
             , simulation = Force.simulation []
@@ -181,6 +183,23 @@ update msg model =
 
         ArticleSearchResult (Err e) ->
             ( model, Cmd.none )
+
+        GetRelated index ->
+            let
+                node =
+                    model.graph
+                        |> Graph.get index
+                        |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
+            in
+            case node of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just (TagNode x) ->
+                    ( model, getArticlesWithTag x )
+
+                Just (ArticleNode x) ->
+                    ( model, getTagsForArticle x )
 
         Tick t ->
             case model.drag of
@@ -351,7 +370,16 @@ articleSearchResult model articlesFound =
                                 ( n.id, TagNode n )
 
                             ArticleNode a ->
-                                ( a.id, ArticleNode { a | tags = updateTags a.tags } )
+                                let
+                                    tags =
+                                        (articlesFound
+                                            |> List.filter (\x -> x.id == a.id)
+                                            |> List.map (\x -> x.tags)
+                                            |> List.foldl (\xs ys -> xs ++ ys) a.tags
+                                        )
+                                            |> List.Extra.uniqueBy (\x -> x.id)
+                                in
+                                ( a.id, ArticleNode { a | tags = updateTags tags } )
                     )
                 |> Dict.fromList
 
@@ -368,14 +396,6 @@ articleSearchResult model articlesFound =
                     Graph.edges graph
             , Force.manyBodyStrength 0.7 <| List.map .id <| Graph.nodes graph
             ]
-
-        _ =
-            Debug.log "nextId" nextId
-                |> (\_ -> Debug.log "newTags" newTags)
-                |> (\_ -> Debug.log "nodesWithNewTags" nodesWithNewTags)
-                |> (\_ -> Debug.log "newArticles" newArticles)
-                |> (\_ -> Debug.log "nodesWithNewArticles" nodesWithNewArticles)
-                |> (\_ -> Debug.log "updatedNodes" updatedNodes)
     in
     ( { model
         | nodes = updatedNodes
@@ -564,6 +584,7 @@ nodeElement nodes node =
         , cy node.label.y
         , style "cursor" "pointer"
         , onMouseDown node
+        , onDoubleClick <| GetRelated node.id
         ]
         [ title [] [ text txt ]
         ]
@@ -580,6 +601,7 @@ nodeElement nodes node =
         , stroke (Color.rgba 0.9 0.9 0.92 0.9)
         , style "cursor" "pointer"
         , onMouseDown node
+        , onDoubleClick <| GetRelated node.id
         ]
         [ text txt ]
     ]
@@ -630,6 +652,24 @@ search model =
     HttpBuilder.get "/api/articles"
         |> withHeader "Content-Type" "application/json"
         |> withQueryParams (Maybe.Extra.values [ tag, article ])
+        |> withExpectJson searchResultDecoder
+        -- |> withTimeout (10 * Time.second)
+        |> send ArticleSearchResult
+
+
+getArticlesWithTag : Tag -> Cmd Msg
+getArticlesWithTag tag =
+    HttpBuilder.get ("/api/tags/" ++ tag.id ++ "/articles")
+        |> withHeader "Content-Type" "application/json"
+        |> withExpectJson searchResultDecoder
+        -- |> withTimeout (10 * Time.second)
+        |> send ArticleSearchResult
+
+
+getTagsForArticle : Article -> Cmd Msg
+getTagsForArticle article =
+    HttpBuilder.get ("/api/articles/" ++ article.id ++ "/tags")
+        |> withHeader "Content-Type" "application/json"
         |> withExpectJson searchResultDecoder
         -- |> withTimeout (10 * Time.second)
         |> send ArticleSearchResult
