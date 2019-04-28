@@ -563,7 +563,7 @@ onMouseDown node =
 
 nodeElement nodes node =
     let
-        txt =
+        fullTitle =
             Dict.get node.label.value nodes
                 |> Maybe.Extra.unwrap node.label.value
                     (\x ->
@@ -574,11 +574,56 @@ nodeElement nodes node =
                             ArticleNode y ->
                                 y.title
                     )
+
+        trimmedTitle =
+            fullTitle
+                |> String.split " "
+                |> List.foldl
+                    (\a b ->
+                        if String.length b < 10 then
+                            let
+                                s =
+                                    (b ++ " " ++ a)
+                                        |> String.trimLeft
+                            in
+                            if String.length s > 13 then
+                                String.slice 0 12 s ++ "."
+
+                            else
+                                s
+
+                        else
+                            b
+                    )
+                    ""
+                |> (\s ->
+                        let
+                            l =
+                                String.length s
+                        in
+                        if l < 12 then
+                            String.padRight (12 - l) ' ' s
+
+                        else
+                            s
+                   )
+
+        ( fillColor, strokeColor, textColor ) =
+            Dict.get node.label.value nodes
+                |> Maybe.Extra.unwrap ( Color.brown, Color.darkBrown, Color.black )
+                    (\x ->
+                        case x of
+                            TagNode _ ->
+                                ( Color.green, Color.darkGreen, Color.black )
+
+                            ArticleNode _ ->
+                                ( Color.lightBlue, Color.blue, Color.black )
+                    )
     in
     [ circle
         [ InEm.r 2
-        , fill (Fill (Color.rgba 0 0 0.95 1.0))
-        , stroke (Color.rgba 0 0 0.8 1.0)
+        , fill (Fill fillColor)
+        , stroke strokeColor
         , strokeWidth 2
         , cx node.label.x
         , cy node.label.y
@@ -586,7 +631,7 @@ nodeElement nodes node =
         , onMouseDown node
         , onDoubleClick <| GetRelated node.id
         ]
-        [ title [] [ text txt ]
+        [ title [] [ text fullTitle ]
         ]
     , text_
         [ InEm.fontSize 0.8
@@ -596,14 +641,14 @@ nodeElement nodes node =
         , InEm.textLength 3.95
         , lengthAdjust LengthAdjustSpacingAndGlyphs
         , textAnchor AnchorMiddle
-        , fill (Fill Color.black)
-        , color Color.black
-        , stroke (Color.rgba 0.9 0.9 0.92 0.9)
+        , color textColor
+        , fill (Fill textColor)
+        , stroke textColor
         , style "cursor" "pointer"
         , onMouseDown node
         , onDoubleClick <| GetRelated node.id
         ]
-        [ text txt ]
+        [ text trimmedTitle ]
     ]
 
 
