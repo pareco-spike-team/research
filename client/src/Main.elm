@@ -19,11 +19,11 @@ import List.Extra
 import Maybe.Extra
 import Time
 import TypedSvg exposing (circle, g, line, rect, svg, text_, title)
-import TypedSvg.Attributes exposing (class, color, fill, fontFamily, lengthAdjust, stroke, textAnchor, viewBox)
+import TypedSvg.Attributes exposing (class, color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor, viewBox)
 import TypedSvg.Attributes.InEm as InEm
 import TypedSvg.Attributes.InPx as InPx exposing (cx, cy, r, strokeWidth, x1, x2, y1, y2)
 import TypedSvg.Core exposing (Attribute, Svg, text)
-import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), LengthAdjust(..))
+import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), FontWeight(..), LengthAdjust(..))
 
 
 w : Float
@@ -596,17 +596,6 @@ nodeElement nodes node =
                             b
                     )
                     ""
-                |> (\s ->
-                        let
-                            l =
-                                String.length s
-                        in
-                        if l < 12 then
-                            String.padRight (12 - l) ' ' s
-
-                        else
-                            s
-                   )
 
         ( fillColor, strokeColor, textColor ) =
             Dict.get node.label.value nodes
@@ -621,10 +610,10 @@ nodeElement nodes node =
                     )
     in
     [ circle
-        [ InEm.r 2
+        [ InEm.r 2.3
         , fill (Fill fillColor)
         , stroke strokeColor
-        , strokeWidth 2
+        , strokeWidth 3
         , cx node.label.x
         , cy node.label.y
         , style "cursor" "pointer"
@@ -634,11 +623,11 @@ nodeElement nodes node =
         [ title [] [ text fullTitle ]
         ]
     , text_
-        [ InEm.fontSize 0.8
-        , fontFamily [ "Helvetica Neue", "Helvetica", "Arial", "sans-serif" ]
+        [ InEm.fontSize 0.72
+        , fontFamily [ "Helvetica", "Arial", "sans-serif" ]
+        , fontWeight FontWeightLighter
         , InPx.x node.label.x
         , InPx.y node.label.y
-        , InEm.textLength 3.95
         , lengthAdjust LengthAdjustSpacingAndGlyphs
         , textAnchor AnchorMiddle
         , color textColor
