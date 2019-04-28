@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	neo = require('./neoHelper.js'),
+	neo = require('../util/neoHelper.js'),
 	markdownFileToParse = `${__dirname}/../data/Galnet_Revamp_no_HTML.txt`,
 	shortId = require('shortid'),
 	markdownParse = require('./markdownParser.js');

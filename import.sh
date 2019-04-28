@@ -8,6 +8,7 @@ docker-compose up -d
 echo =Waiting for neo to startup =
 sleep 10
 echo = Importing data =
+cd dataImport
 node ./import.js $@
 echo = Update tags on articles =
 node ./updateArticleTags.js $@

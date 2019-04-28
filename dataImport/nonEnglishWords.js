@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	{ getDriver, runQuery } = require('./neoHelper'),
+	{ getDriver, runQuery } = require('../util/neoHelper'),
 	englishWords = new Set(require('an-array-of-english-words'));
 
 async function doIt() {
