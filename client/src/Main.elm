@@ -38,6 +38,7 @@ h =
 
 type Msg
     = ArticleSearchResult (Result Http.Error (List Article))
+    | ArticleSelectedResult (Result Http.Error (List Article))
     | AllTags (Result Http.Error (List Tag))
     | TagFilterInput String
     | SubmitSearch
@@ -196,6 +197,35 @@ update msg model =
         ArticleSearchResult (Err e) ->
             ( model, Cmd.none )
 
+        ArticleSelectedResult (Ok articles) ->
+            let
+                articleId =
+                    case model.showNode of
+                        Just (ArticleNode a) ->
+                            a.id
+
+                        _ ->
+                            ""
+
+                theArticle =
+                    articles
+                        |> List.filter (\x -> x.id == articleId)
+                        |> List.foldl
+                            (\x dict ->
+                                dict
+                                    |> Dict.get articleId
+                                    |> Maybe.Extra.unwrap x (\y -> { x | tags = x.tags ++ y.tags })
+                                    |> (\y -> Dict.insert articleId y dict)
+                            )
+                            Dict.empty
+                        |> Dict.get articleId
+                        |> Maybe.map ArticleNode
+            in
+            ( { model | showNode = theArticle }, Cmd.none )
+
+        ArticleSelectedResult (Err e) ->
+            ( model, Cmd.none )
+
         GetRelated index ->
             let
                 node =
@@ -211,7 +241,7 @@ update msg model =
                     ( model, getArticlesWithTag x )
 
                 Just (ArticleNode x) ->
-                    ( model, getTagsForArticle x )
+                    ( model, getTagsForArticle model.nodes x ArticleSearchResult )
 
         ShowNode index ->
             let
@@ -219,8 +249,16 @@ update msg model =
                     model.graph
                         |> Graph.get index
                         |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
+
+                cmd =
+                    case node of
+                        Just (ArticleNode a) ->
+                            getTagsForArticle Dict.empty a ArticleSelectedResult
+
+                        _ ->
+                            Cmd.none
             in
-            ( { model | showNode = node }, Cmd.none )
+            ( { model | showNode = node }, cmd )
 
         Tick t ->
             case model.drag of
@@ -502,15 +540,124 @@ view model =
                         , style "margin-right" "0.3em"
                         , style "width" "25%"
                         ]
-                        [ showNode model.nodes nodeToShow ]
+                        [ showNode model nodeToShow ]
                 )
                 model.showNode
             ]
         ]
 
 
-showNode : Nodes -> Node -> Html Msg
-showNode nodes node =
+type alias Index =
+    Int
+
+
+type alias ParsedText =
+    ( Index, String, TextType )
+
+
+type TextType
+    = TypeText
+    | TypeTag
+    | NewLine
+
+
+parseText : Model -> Article -> List ParsedText
+parseText model article =
+    let
+        lowerCaseText =
+            String.toLower article.text
+
+        tagsLower =
+            model.allTags |> List.map (\x -> ( String.toLower x.tag, x ))
+
+        doTag : ( String, Tag ) -> List ParsedText -> List ParsedText
+        doTag ( strTag, tag ) acc =
+            let
+                parts : List ( Int, String, TextType )
+                parts =
+                    String.indexes strTag lowerCaseText
+                        |> List.map (\x -> ( x, tag.tag, TypeTag ))
+            in
+            parts ++ acc
+
+        parsed : List ParsedText
+        parsed =
+            tagsLower
+                |> List.foldl doTag []
+                |> List.sortBy (\( a, _, _ ) -> a)
+                |> List.foldl
+                    (\( tidx, ttag, ttype ) acc ->
+                        case acc of
+                            ( idx, tag, type_ ) :: tail ->
+                                if (idx + String.length tag) > tidx then
+                                    if String.length ttag > String.length tag then
+                                        ( tidx, ttag, ttype ) :: tail
+
+                                    else
+                                        ( idx, tag, type_ ) :: tail
+
+                                else
+                                    ( tidx, ttag, ttype ) :: acc
+
+                            _ ->
+                                ( tidx, ttag, ttype ) :: acc
+                    )
+                    []
+    in
+    List.foldl
+        (\p acc ->
+            let
+                hh =
+                    List.head acc
+
+                ( index, text, _ ) =
+                    Maybe.withDefault ( 0, article.text, TypeText ) hh
+
+                ( idx, tag, _ ) =
+                    p
+
+                left =
+                    ( index, String.slice index idx article.text, TypeText )
+
+                strLen =
+                    String.length tag
+
+                center =
+                    ( idx, String.slice idx (idx + strLen) article.text, TypeTag )
+
+                rest =
+                    ( idx + strLen, String.dropLeft (idx + strLen) article.text, TypeText )
+            in
+            rest :: center :: left :: (List.tail acc |> Maybe.withDefault [])
+        )
+        []
+        (parsed
+            |> List.reverse
+        )
+        |> List.foldl
+            (\x acc ->
+                case x of
+                    ( idx, text, TypeText ) ->
+                        (String.split "\n" text
+                            |> List.map
+                                (\i ->
+                                    if i == "" then
+                                        ( idx, "\n", NewLine )
+
+                                    else
+                                        ( idx, i, TypeText )
+                                )
+                        )
+                            ++ acc
+
+                    _ ->
+                        x :: acc
+            )
+            []
+
+
+showNode : Model -> Node -> Html Msg
+showNode model node =
     case node of
         TagNode n ->
             div []
@@ -523,12 +670,28 @@ showNode nodes node =
             let
                 theText =
                     [ text n.text ]
+
+                parsedText =
+                    parseText model n
+                        |> Debug.log "_parsed_"
+                        |> List.map
+                            (\( _, text_, type_ ) ->
+                                case type_ of
+                                    TypeText ->
+                                        span [] [ text text_ ]
+
+                                    TypeTag ->
+                                        span [ style "background-color" "yellow" ] [ text text_ ]
+
+                                    NewLine ->
+                                        br [] []
+                            )
             in
             div
                 []
                 [ div [ style "font-weight" "bold" ] [ text n.title ]
                 , p [] []
-                , span [] theText
+                , span [] parsedText
                 , p [] []
                 , div [] [ text "Tags: " ]
                 , div []
@@ -784,13 +947,29 @@ getArticlesWithTag tag =
         |> send ArticleSearchResult
 
 
-getTagsForArticle : Article -> Cmd Msg
-getTagsForArticle article =
+getTagsForArticle : Nodes -> Article -> (Result Http.Error (List Article) -> Msg) -> Cmd Msg
+getTagsForArticle nodes article msg =
+    let
+        include =
+            Dict.values nodes
+                |> List.map
+                    (\x ->
+                        case x of
+                            TagNode _ ->
+                                Nothing
+
+                            ArticleNode a ->
+                                Just a.id
+                    )
+                |> Maybe.Extra.values
+    in
+    --
     HttpBuilder.get ("/api/articles/" ++ article.id ++ "/tags")
         |> withHeader "Content-Type" "application/json"
+        |> withQueryParams [ ( "includeArticles", String.join "," include ) ]
         |> withExpectJson searchResultDecoder
         -- |> withTimeout (10 * Time.second)
-        |> send ArticleSearchResult
+        |> send msg
 
 
 searchResultDecoder : Decoder (List Article)

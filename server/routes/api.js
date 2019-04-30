@@ -43,12 +43,15 @@ async function searchArticles(tags, filter) {
 	return result;
 }
 
-async function getTagsForArticle(articleId) {
+async function getTagsForArticle(articleId, includeArticles) {
 	const driver = getDriver();
 	const s = driver.session();
 	const query =
-		"MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} RETURN article, tag";
-	const result = await runQuery(s)(query)({ articleId: articleId });
+		`MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} WITH tag
+		MATCH (tag)<-[:Tag]-(article:Article) WHERE article.id = {articleId} OR article.id IN {includeArticles} RETURN tag, article`;
+	const toInclude = includeArticles ? includeArticles.split(',').map(x => x.trim()) : [];
+
+	const result = await runQuery(s)(query)({ articleId: articleId, includeArticles: toInclude });
 	driver.close();
 	return result;
 }
@@ -79,7 +82,7 @@ const api = {
 	getArticlesWithTag: (req, res) => get(res, () => getArticlesWithTag(req.params.tagId)),
 
 	searchArticles: (req, res) => get(res, () => searchArticles(req.query.tagFilter, req.query.articleFilter)),
-	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId))
+	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles))
 };
 
 module.exports = () => {
