@@ -712,7 +712,10 @@ showNode model node =
             in
             div
                 []
-                [ div [ style "font-weight" "bold" ] [ text article.title ]
+                [ div [ style "font-weight" "bold" ]
+                    [ div [] [ text article.date ]
+                    , div [] [ text article.title ]
+                    ]
                 , p [] []
                 , span [] parsedText
                 , p [] []
