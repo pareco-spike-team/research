@@ -148,14 +148,14 @@ init _ =
             { nodes = Dict.empty
             , showNode = Nothing
             , allTags = []
-            , tagFilter = "winking cat"
+            , tagFilter = ""
             , articleFilter = ""
             , drag = Nothing
             , simulation = Force.simulation []
             , graph = buildGraph Dict.empty
             }
     in
-    ( model, Cmd.batch [ search model, getAllTags ] )
+    ( model, Cmd.batch [ getAllTags ] )
 
 
 subscriptions : Model -> Sub Msg
@@ -244,21 +244,7 @@ update msg model =
                     ( model, getTagsForArticle model.nodes x ArticleSearchResult )
 
         ShowNode index ->
-            let
-                node =
-                    model.graph
-                        |> Graph.get index
-                        |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
-
-                cmd =
-                    case node of
-                        Just (ArticleNode a) ->
-                            getTagsForArticle Dict.empty a ArticleSelectedResult
-
-                        _ ->
-                            Cmd.none
-            in
-            ( { model | showNode = node }, cmd )
+            updateShowNode model index
 
         Tick t ->
             case model.drag of
@@ -372,6 +358,25 @@ updateContextWithValue nodeCtx value =
     { nodeCtx | node = { node | label = value } }
 
 
+updateShowNode : Model -> Int -> ( Model, Cmd Msg )
+updateShowNode model index =
+    let
+        node =
+            model.graph
+                |> Graph.get index
+                |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
+
+        cmd =
+            case node of
+                Just (ArticleNode a) ->
+                    getTagsForArticle Dict.empty a ArticleSelectedResult
+
+                _ ->
+                    Cmd.none
+    in
+    ( { model | showNode = node }, cmd )
+
+
 articleSearchResult : Model -> List Article -> ( Model, Cmd Msg )
 articleSearchResult model articlesFound =
     let
@@ -455,14 +460,20 @@ articleSearchResult model articlesFound =
                     Graph.edges graph
             , Force.manyBodyStrength 0.7 <| List.map .id <| Graph.nodes graph
             ]
+
+        newModel =
+            { model
+                | nodes = updatedNodes
+                , simulation = Force.simulation forces
+                , graph = graph
+            }
     in
-    ( { model
-        | nodes = updatedNodes
-        , simulation = Force.simulation forces
-        , graph = graph
-      }
-    , Cmd.none
-    )
+    case model.showNode of
+        Just x ->
+            ( newModel, Cmd.none )
+
+        Nothing ->
+            updateShowNode newModel 0
 
 
 type alias BuildGraphTemp a =
@@ -666,14 +677,18 @@ showNode model node =
                 , span [] [ text n.tag ]
                 ]
 
-        ArticleNode n ->
+        ArticleNode article ->
             let
+                tags =
+                    article.tags
+                        |> List.map (\x -> x.tag)
+                        |> List.sort
+
                 theText =
-                    [ text n.text ]
+                    [ text article.text ]
 
                 parsedText =
-                    parseText model n
-                        |> Debug.log "_parsed_"
+                    parseText model article
                         |> List.map
                             (\( _, text_, type_ ) ->
                                 case type_ of
@@ -681,7 +696,15 @@ showNode model node =
                                         span [] [ text text_ ]
 
                                     TypeTag ->
-                                        span [ style "background-color" "yellow" ] [ text text_ ]
+                                        let
+                                            bgColor =
+                                                if List.any (\x -> String.toLower x == String.toLower text_) tags then
+                                                    "lightgreen"
+
+                                                else
+                                                    "yellow"
+                                        in
+                                        span [ style "background-color" bgColor ] [ text text_ ]
 
                                     NewLine ->
                                         br [] []
@@ -689,15 +712,13 @@ showNode model node =
             in
             div
                 []
-                [ div [ style "font-weight" "bold" ] [ text n.title ]
+                [ div [ style "font-weight" "bold" ] [ text article.title ]
                 , p [] []
                 , span [] parsedText
                 , p [] []
                 , div [] [ text "Tags: " ]
                 , div []
-                    (n.tags
-                        |> List.map (\x -> x.tag)
-                        |> List.sort
+                    (tags
                         |> List.map (\x -> span [] [ text x ])
                         |> List.intersperse (br [] [])
                     )
@@ -940,6 +961,7 @@ search model =
 
 getArticlesWithTag : Tag -> Cmd Msg
 getArticlesWithTag tag =
+    --TODO: as with getTagsForArticle,
     HttpBuilder.get ("/api/tags/" ++ tag.id ++ "/articles")
         |> withHeader "Content-Type" "application/json"
         |> withExpectJson searchResultDecoder
