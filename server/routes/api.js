@@ -19,7 +19,15 @@ async function searchArticles(tags, filter) {
 	const driver = getDriver();
 	const s = driver.session();
 	const tagMatch = tags ?
-		'(?muis)' + (tags.split(',').map(x => x.trim()).map(x => `${(x.toLowerCase())}`).join('|')) :
+		'(?muis)' + (
+			tags.
+				split(',').
+				map(x => x.trim()).
+				map(x =>
+					(x.length >= 4) ?
+						`.*${(x.toLowerCase())}.*` :
+						`${(x.toLowerCase())}`).
+				join('|')) :
 		null;
 	const articleMatch = filter ? `(?muis)${filter}` : null;
 
