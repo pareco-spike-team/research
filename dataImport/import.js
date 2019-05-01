@@ -76,7 +76,8 @@ async function saveArticles(articles) {
 	let session = driver.session();
 	for (var article of articles) {
 		let query = `
-			CREATE (a:Article { id: {id}, title: {title}, text: {text}, date: {date} })
+			MERGE (a:Article { title: {title}, date: {date} })
+			ON CREATE SET a.id = {id}, a.text = {text}
 			WITH a`;
 		let args = {
 			id: shortId.generate(),
