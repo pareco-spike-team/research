@@ -7,7 +7,7 @@ async function getAllTags() {
 	const driver = getDriver();
 	let session = driver.session();
 	const query = runQuery(session);
-	const findAllTagsQuery = `MATCH (t:Tag) RETURN t.tag as tag`;
+	const findAllTagsQuery = `MATCH (t:Tag) RETURN t.tag as tag ORDER BY tag`;
 	const result = (await query(findAllTagsQuery)({})).map(x => x.tag);
 	driver.close();
 
@@ -26,7 +26,7 @@ async function tagArticles() {
 	const addTag = runQuery(session)(query);
 	console.log(`There are ${tags.length} to handle`);
 	for (const tag of tags) {
-		const args = { tag: tag, tagMatch: `(?muis).*${tag.toLowerCase()}.*` };
+		const args = { tag: tag, tagMatch: `(?muis).*[^a-z]${tag.toLowerCase()}[^a-z].*` };
 		const result = await addTag(args);
 		console.log(`${result[0].articlesUpdated} articles has tag '${tag}'`);
 	}
