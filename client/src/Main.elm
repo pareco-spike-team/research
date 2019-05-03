@@ -415,6 +415,8 @@ articleSearchResult model articlesFound =
         newArticles =
             articlesFound
                 |> List.filter (\x -> not <| Dict.member x.id model.nodes)
+                |> List.foldl (\x dict -> Dict.insert x.id x dict) Dict.empty
+                |> Dict.values
                 |> List.indexedMap
                     (\idx article ->
                         { article | index = idx + nextId + List.length newTags }
