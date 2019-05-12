@@ -285,10 +285,22 @@ tick sim =
                                                 VectorNode id y
 
                                             else
+                                                let
+                                                    maxDeltaMove value =
+                                                        clamp -20.0 20.0 value
+                                                in
                                                 VectorNode id
                                                     { y
-                                                        | x = deltaList |> List.foldl (\a b -> b + a.xDist) y.x
-                                                        , y = deltaList |> List.foldl (\a b -> b + a.yDist) y.y
+                                                        | x =
+                                                            deltaList
+                                                                |> List.foldl (\a b -> b + a.xDist) 0
+                                                                |> maxDeltaMove
+                                                                |> (+) y.x
+                                                        , y =
+                                                            deltaList
+                                                                |> List.foldl (\a b -> b + a.yDist) 0
+                                                                |> maxDeltaMove
+                                                                |> (+) y.y
                                                         , vx = deltaList |> List.foldl (\a b -> b + a.xSpeed) y.vx
                                                         , vy = deltaList |> List.foldl (\a b -> b + a.ySpeed) y.vy
                                                     }
