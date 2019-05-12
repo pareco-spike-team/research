@@ -17,10 +17,51 @@ import TypedSvg.Core exposing (Attribute, Svg, text)
 import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), FontWeight(..), LengthAdjust(..))
 
 
+lightNeoTheme =
+    { background = "#D2D5DA"
+    , nodeBackground = "#FAFAFA"
+    , text =
+        { tag = "lightgreen"
+        , possibleTag = "yellow"
+        }
+    , form =
+        { background = "#E8E8EA"
+        , inputFieldBackground = "white"
+        }
+    , graph =
+        { background = "#FAFAFA"
+        , link =
+            { background = Color.rgb255 170 170 170
+            }
+        , node =
+            { tag =
+                { fillColor = Color.green
+                , strokeColor = Color.darkGreen
+                , textColor = Color.black
+                }
+            , article =
+                { fillColor = Color.lightBlue
+                , strokeColor = Color.blue
+                , textColor = Color.black
+                }
+            , unknown =
+                { fillColor = Color.brown
+                , strokeColor = Color.darkBrown
+                , textColor = Color.black
+                }
+            }
+        }
+    }
+
+
+currentTheme =
+    lightNeoTheme
+
+
 view : Model -> Html Msg
 view model =
     div
-        [ style "background-color" "#D2D5DA"
+        [ style "background-color" currentTheme.background
         , style "padding" "0.5em"
         , style "padding-top" "0"
         ]
@@ -30,7 +71,7 @@ view model =
             , Maybe.Extra.unwrap (text "")
                 (\nodeToShow ->
                     div
-                        [ style "background-color" "#FAFAFA"
+                        [ style "background-color" currentTheme.nodeBackground
                         , style "border-radius" "5px"
                         , style "padding" "0.5em"
                         , style "margin-left" "0.8em"
@@ -76,10 +117,10 @@ showNode model node =
                                         let
                                             bgColor =
                                                 if List.any (\x -> String.toLower x == String.toLower text_) tags then
-                                                    "lightgreen"
+                                                    currentTheme.text.tag
 
                                                 else
-                                                    "yellow"
+                                                    currentTheme.text.possibleTag
                                         in
                                         span [ style "background-color" bgColor ] [ text text_ ]
 
@@ -116,7 +157,7 @@ outline: none;
         [ div
             [ style "display" "flex"
             , style "flex-direction" "row"
-            , style "background-color" "#E8E8EA"
+            , style "background-color" currentTheme.form.background
             , style "margin-bottom" "1em"
             , style "padding" "0.5em"
             ]
@@ -127,7 +168,7 @@ outline: none;
                 [ div
                     [ style "display" "flex"
                     , style "flex-direction" "row"
-                    , style "background-color" "white"
+                    , style "background-color" currentTheme.form.inputFieldBackground
                     , style "border-radius" "5px"
                     ]
                     [ span
@@ -154,14 +195,14 @@ outline: none;
             , div
                 [ style "padding" "0.5em"
                 , style "align-self" "center"
-                , style "background-color" "#E8E8EA"
+                , style "background-color" currentTheme.form.background
                 , style "cursor" "pointer"
                 ]
                 [ button
                     [ type_ "submit"
                     , value "Search"
                     , style "border" "0"
-                    , style "background-color" "#E8E8EA"
+                    , style "background-color" currentTheme.form.background
                     ]
                     [ i [ class [ "fa-2x", "fas fa-play" ] ] [] ]
                 ]
@@ -172,7 +213,7 @@ outline: none;
 linkElement edge =
     line
         [ strokeWidth 1
-        , stroke (Color.rgb255 170 170 170)
+        , stroke currentTheme.graph.link.background
         , x1 edge.source.x
         , y1 edge.source.y
         , x2 edge.target.x
@@ -223,16 +264,16 @@ nodeElement nodes simulationNode =
                     )
                     ""
 
-        ( fillColor, strokeColor, textColor ) =
+        { fillColor, strokeColor, textColor } =
             Dict.get simulationNode.id nodes
-                |> Maybe.Extra.unwrap ( Color.brown, Color.darkBrown, Color.black )
+                |> Maybe.Extra.unwrap currentTheme.graph.node.unknown
                     (\x ->
                         case x of
                             Model.TagNode _ ->
-                                ( Color.green, Color.darkGreen, Color.black )
+                                currentTheme.graph.node.tag
 
                             Model.ArticleNode _ ->
-                                ( Color.lightBlue, Color.blue, Color.black )
+                                currentTheme.graph.node.article
                     )
     in
     [ circle
@@ -287,7 +328,7 @@ drawGraph model =
                 |> List.map (nodeElement model.nodes)
                 |> List.map (g [ class [ "nodes" ] ])
     in
-    div [ style "background-color" "#FAFAFA", style "border-radius" "5px" ]
+    div [ style "background-color" currentTheme.graph.background, style "border-radius" "5px" ]
         [ svg [ viewBox 0 0 Model.width Model.height ]
             (edges :: nodes)
         ]
