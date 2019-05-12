@@ -1,8 +1,6 @@
 module Simulation exposing (Edge, Node, Simulation, add, edges, init, isCompleted, lockPosition, movePosition, node, nodes, tick, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
 
 import Dict exposing (Dict)
-import Graph exposing (Graph)
-import Maybe exposing (Maybe)
 import Maybe.Extra
 
 
