@@ -176,13 +176,13 @@ createNewNode sim idx x =
 
 init : ( Float, Float ) -> Simulation comparable
 init center =
-    { springLength = 150
-    , springForce = 5
-    , gravity = 5
-    , mass = 100
-    , deltaTime = 1.0
-    , closestBodiesCount = 3
-    , friction = 0.12
+    { springLength = 200
+    , springForce = 2
+    , gravity = 8
+    , mass = 150
+    , deltaTime = 0.5
+    , closestBodiesCount = 5
+    , friction = 0.15
     , maxTicks = 200
     , tickCount = 0
     , center = center
