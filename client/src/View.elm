@@ -17,6 +17,37 @@ import TypedSvg.Core exposing (Attribute, Svg, text)
 import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), FontWeight(..), LengthAdjust(..))
 
 
+type alias GraphNodeColor =
+    { fillColor : Color.Color
+    , strokeColor : Color.Color
+    , textColor : Color.Color
+    }
+
+
+type alias ColorTheme =
+    { background : String
+    , nodeBackground : String
+    , text :
+        { tag : String
+        , possibleTag : String
+        }
+    , form :
+        { background : String
+        , inputFieldBackground : String
+        }
+    , graph :
+        { background : String
+        , link : { background : Color.Color }
+        , node :
+            { tag : GraphNodeColor
+            , article : GraphNodeColor
+            , unknown : GraphNodeColor
+            }
+        }
+    }
+
+
+lightNeoTheme : ColorTheme
 lightNeoTheme =
     { background = "#D2D5DA"
     , nodeBackground = "#FAFAFA"
@@ -54,6 +85,7 @@ lightNeoTheme =
     }
 
 
+currentTheme : ColorTheme
 currentTheme =
     lightNeoTheme
 
