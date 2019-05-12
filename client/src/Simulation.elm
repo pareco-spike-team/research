@@ -159,7 +159,7 @@ createNewNode sim idx x =
                 |> toFloat
 
         ( xd, yd ) =
-            fromPolar ( sim.springLength / 2, degrees angle )
+            fromPolar ( 0.7 * sim.springLength + 3 * toFloat idx, degrees angle )
     in
     VectorNode x
         { x = Tuple.first sim.center + xd
