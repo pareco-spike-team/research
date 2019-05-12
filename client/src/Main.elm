@@ -3,11 +3,11 @@ module Main exposing (init, main)
 import Browser
 import Browser.Events
 import Dict exposing (Dict)
-import Force
 import Html.Events.Extra.Mouse as Mouse
 import Json.Decode as Decode
 import Model exposing (Id, Model, Msg(..))
-import Update exposing (buildGraph, getAllTags, update)
+import Simulation
+import Update exposing (getAllTags, update)
 import View exposing (view)
 
 
@@ -32,8 +32,10 @@ init _ =
             , tagFilter = ""
             , articleFilter = ""
             , drag = Nothing
-            , simulation = Force.simulation []
-            , graph = buildGraph Dict.empty
+            , simulation =
+                Simulation.init ( 400.0, 400.0 )
+                    |> Simulation.withMaxIterations 500
+                    |> Simulation.withNodes []
             }
     in
     ( model, Cmd.batch [ getAllTags ] )
@@ -43,7 +45,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.drag of
         Nothing ->
-            if Force.isCompleted model.simulation then
+            if Simulation.isCompleted model.simulation then
                 Sub.none
 
             else

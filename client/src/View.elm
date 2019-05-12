@@ -2,14 +2,13 @@ module View exposing (view)
 
 import Color exposing (Color)
 import Dict exposing (Dict)
-import Force
-import Graph exposing (Edge, Graph, Node, NodeId)
 import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Maybe.Extra
 import Model exposing (Article, Model, Msg(..), Node)
+import Simulation
 import TypedSvg exposing (circle, g, line, rect, svg, text_, title)
 import TypedSvg.Attributes exposing (class, color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor, viewBox)
 import TypedSvg.Attributes.InEm as InEm
@@ -170,35 +169,29 @@ outline: none;
         ]
 
 
-linkElement graph edge =
-    let
-        source =
-            Maybe.withDefault (Force.entity 0 "") <| Maybe.map (.node >> .label) <| Graph.get edge.from graph
-
-        target =
-            Maybe.withDefault (Force.entity 0 "") <| Maybe.map (.node >> .label) <| Graph.get edge.to graph
-    in
+linkElement edge =
     line
         [ strokeWidth 1
         , stroke (Color.rgb255 170 170 170)
-        , x1 source.x
-        , y1 source.y
-        , x2 target.x
-        , y2 target.y
+        , x1 edge.source.x
+        , y1 edge.source.y
+        , x2 edge.target.x
+        , y2 edge.target.y
         ]
         []
 
 
-onMouseDown : { a | id : NodeId } -> Attribute Msg
+onMouseDown : { a | id : Model.Id } -> Attribute Msg
 onMouseDown node =
     Mouse.onDown (.clientPos >> DragStart node.id)
 
 
-nodeElement nodes node =
+nodeElement : Model.Nodes -> Simulation.Node Model.Id -> List (Html Msg)
+nodeElement nodes simulationNode =
     let
         fullTitle =
-            Dict.get node.label.value nodes
-                |> Maybe.Extra.unwrap node.label.value
+            Dict.get simulationNode.id nodes
+                |> Maybe.Extra.unwrap simulationNode.id
                     (\x ->
                         case x of
                             Model.TagNode y ->
@@ -231,7 +224,7 @@ nodeElement nodes node =
                     ""
 
         ( fillColor, strokeColor, textColor ) =
-            Dict.get node.label.value nodes
+            Dict.get simulationNode.id nodes
                 |> Maybe.Extra.unwrap ( Color.brown, Color.darkBrown, Color.black )
                     (\x ->
                         case x of
@@ -247,12 +240,12 @@ nodeElement nodes node =
         , fill (Fill fillColor)
         , stroke strokeColor
         , strokeWidth 3
-        , cx node.label.x
-        , cy node.label.y
+        , cx simulationNode.x
+        , cy simulationNode.y
         , style "cursor" "pointer"
-        , onMouseDown node
-        , onClick <| ShowNode node.id
-        , onDoubleClick <| GetRelated node.id
+        , onMouseDown simulationNode
+        , onClick <| ShowNode simulationNode.id
+        , onDoubleClick <| GetRelated simulationNode.id
         ]
         [ title [] [ text fullTitle ]
         ]
@@ -260,17 +253,17 @@ nodeElement nodes node =
         [ InEm.fontSize 0.72
         , fontFamily [ "Helvetica", "Arial", "sans-serif" ]
         , fontWeight FontWeightLighter
-        , InPx.x node.label.x
-        , InPx.y node.label.y
+        , InPx.x simulationNode.x
+        , InPx.y simulationNode.y
         , lengthAdjust LengthAdjustSpacingAndGlyphs
         , textAnchor AnchorMiddle
         , color textColor
         , fill (Fill textColor)
         , stroke textColor
         , style "cursor" "pointer"
-        , onMouseDown node
-        , onClick <| ShowNode node.id
-        , onDoubleClick <| GetRelated node.id
+        , onMouseDown simulationNode
+        , onClick <| ShowNode simulationNode.id
+        , onDoubleClick <| GetRelated simulationNode.id
         ]
         [ text trimmedTitle ]
     ]
@@ -279,15 +272,18 @@ nodeElement nodes node =
 drawGraph : Model -> Svg Msg
 drawGraph model =
     let
+        simEdges =
+            Simulation.edges model.simulation
+
         edges : Svg Msg
         edges =
-            Graph.edges model.graph
-                |> List.map (linkElement model.graph)
+            simEdges
+                |> List.map linkElement
                 |> g [ class [ "links" ] ]
 
         nodes : List (Svg Msg)
         nodes =
-            Graph.nodes model.graph
+            Simulation.nodes model.simulation
                 |> List.map (nodeElement model.nodes)
                 |> List.map (g [ class [ "nodes" ] ])
     in

@@ -1,15 +1,14 @@
-module Update exposing (buildGraph, getAllTags, update)
+module Update exposing (getAllTags, update)
 
 import Dict exposing (Dict)
-import Force
-import Graph exposing (Graph, NodeContext, NodeId)
 import Http
 import HttpBuilder exposing (..)
 import Json.Decode as Decode exposing (Decoder, field, string)
 import Json.Decode.Pipeline exposing (optional, required)
 import List.Extra
 import Maybe.Extra
-import Model exposing (Article, Drag, Entity, Model, Msg(..), Node(..), Nodes, Tag)
+import Model exposing (Article, Drag, Model, Msg(..), Node(..), Nodes, Tag)
+import Simulation exposing (Simulation)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -62,12 +61,10 @@ update msg model =
         ArticleSelectedResult (Err e) ->
             ( model, Cmd.none )
 
-        GetRelated index ->
+        GetRelated id ->
             let
                 node =
-                    model.graph
-                        |> Graph.get index
-                        |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
+                    Dict.get id model.nodes
             in
             case node of
                 Nothing ->
@@ -79,128 +76,65 @@ update msg model =
                 Just (ArticleNode x) ->
                     ( model, getTagsForArticle model.nodes x ArticleSearchResult )
 
-        ShowNode index ->
-            updateShowNode model index
+        ShowNode id ->
+            updateShowNode model id
 
         Tick t ->
-            case model.drag of
-                Nothing ->
-                    let
-                        ( newState, list ) =
-                            Force.tick model.simulation <| List.map .label <| Graph.nodes model.graph
-                    in
-                    ( { model
-                        | graph = updateGraphWithList model.graph list
-                        , simulation = newState
-                      }
-                    , Cmd.none
-                    )
+            ( { model | simulation = Simulation.tick model.simulation }
+            , Cmd.none
+            )
 
-                Just { current, index } ->
-                    let
-                        draggedNodePos =
-                            model.graph
-                                |> Graph.get index
-                                |> Maybe.Extra.unwrap current (\x -> ( x.node.label.x, x.node.label.y ))
-
-                        ( newState, list ) =
-                            Force.tick model.simulation <| List.map .label <| Graph.nodes model.graph
-                    in
-                    ( { model
-                        | graph =
-                            Graph.update index
-                                (Maybe.map (updateNode draggedNodePos))
-                                (updateGraphWithList model.graph list)
-                        , simulation = newState
-                      }
-                    , Cmd.none
-                    )
-
-        DragStart index xy ->
+        DragStart id xy ->
             let
-                pos =
-                    Graph.get index model.graph
-                        |> Maybe.Extra.unwrap ( 0, 0 ) (\x -> ( x.node.label.x, x.node.label.y ))
+                newSim =
+                    Simulation.lockPosition id model.simulation
             in
-            ( { model | drag = Just (Drag xy xy index) }, Cmd.none )
+            ( { model | drag = Just (Drag xy xy id), simulation = newSim }, Cmd.none )
 
         DragAt xy ->
             case model.drag of
-                Just { start, index } ->
+                Just { start, id } ->
                     let
                         ( deltax, deltay ) =
                             ( Tuple.first xy - Tuple.first start, Tuple.second xy - Tuple.second start )
 
-                        newPos =
-                            Graph.get index model.graph
-                                |> Maybe.Extra.unwrap ( deltax, deltay ) (\x -> ( x.node.label.x + deltax, x.node.label.y + deltay ))
+                        sim =
+                            Simulation.node id model.simulation
+                                |> Maybe.Extra.unwrap model.simulation
+                                    (\node ->
+                                        Simulation.movePosition id ( node.x + deltax, node.y + deltay ) model.simulation
+                                    )
                     in
-                    ( { model
-                        | drag = Just (Drag xy xy index)
-                        , graph = Graph.update index (Maybe.map (updateNode newPos)) model.graph
-                      }
-                    , Cmd.none
-                    )
+                    ( { model | drag = Just (Drag xy xy id), simulation = sim }, Cmd.none )
 
                 Nothing ->
                     ( { model | drag = Nothing }, Cmd.none )
 
         DragEnd xy ->
             case model.drag of
-                Just { start, index } ->
+                Just { start, id } ->
                     let
                         ( deltax, deltay ) =
                             ( Tuple.first xy - Tuple.first start, Tuple.second xy - Tuple.second start )
 
-                        newPos =
-                            Graph.get index model.graph
-                                |> Maybe.Extra.unwrap ( deltax, deltay ) (\x -> ( x.node.label.x + deltax, x.node.label.y + deltay ))
+                        sim =
+                            Simulation.node id model.simulation
+                                |> Maybe.Extra.unwrap model.simulation
+                                    (\node ->
+                                        Simulation.movePosition id ( node.x + deltax, node.y + deltay ) model.simulation
+                                    )
                     in
-                    ( { model
-                        | drag = Nothing
-                        , graph = Graph.update index (Maybe.map (updateNode newPos)) model.graph
-                      }
-                    , Cmd.none
-                    )
+                    ( { model | drag = Nothing, simulation = sim }, Cmd.none )
 
                 Nothing ->
                     ( { model | drag = Nothing }, Cmd.none )
 
 
-updateNode : ( Float, Float ) -> NodeContext Entity () -> NodeContext Entity ()
-updateNode ( x, y ) nodeCtx =
-    let
-        nodeValue =
-            nodeCtx.node.label
-    in
-    updateContextWithValue nodeCtx { nodeValue | x = x, y = y }
-
-
-updateGraphWithList : Graph Entity () -> List Entity -> Graph Entity ()
-updateGraphWithList =
-    let
-        graphUpdater value =
-            Maybe.map (\ctx -> updateContextWithValue ctx value)
-    in
-    List.foldr (\node graph -> Graph.update node.id (graphUpdater node) graph)
-
-
-updateContextWithValue : NodeContext Entity () -> Entity -> NodeContext Entity ()
-updateContextWithValue nodeCtx value =
+updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )
+updateShowNode model id =
     let
         node =
-            nodeCtx.node
-    in
-    { nodeCtx | node = { node | label = value } }
-
-
-updateShowNode : Model -> Int -> ( Model, Cmd Msg )
-updateShowNode model index =
-    let
-        node =
-            model.graph
-                |> Graph.get index
-                |> Maybe.Extra.unwrap Nothing (\n -> Dict.get n.node.label.value model.nodes)
+            Dict.get id model.nodes
 
         cmd =
             case node of
@@ -314,29 +248,28 @@ articleSearchResult model articlesFound =
             ( from, to )
 
         graph =
-            buildGraph updatedNodes
-
-        forces =
-            [ Force.center (Model.width / 2) (Model.height / 2)
-            , Force.customLinks 1 <|
-                List.map (\x -> { source = x.from, target = x.to, distance = 150, strength = Just 0.2 }) <|
-                    Graph.edges graph
-            , Force.manyBodyStrength 0.7 <| List.map .id <| Graph.nodes graph
-            ]
+            updatedNodes
+                |> buildGraph
+                |> List.foldl
+                    (\node sim -> Simulation.add node sim)
+                    model.simulation
 
         newModel =
-            { model
-                | nodes = updatedNodes
-                , simulation = Force.simulation forces
-                , graph = graph
-            }
+            { model | nodes = updatedNodes, simulation = graph }
+
+        showDefault =
+            newTags
+                |> List.head
+                |> Maybe.Extra.unwrap ""
+                    (\x -> x.id)
+                |> Debug.log "default"
     in
     case model.showNode of
         Just x ->
             ( newModel, Cmd.none )
 
         Nothing ->
-            updateShowNode newModel 0
+            updateShowNode newModel showDefault
 
 
 searchResultDecoder : Decoder (List Article)
@@ -437,56 +370,16 @@ getTagsForArticle nodes article msg =
         |> send msg
 
 
-buildGraph : Nodes -> Graph Entity ()
+buildGraph : Nodes -> List ( Model.Id, List Model.Id )
 buildGraph nodes =
-    let
-        stringList : List String
-        stringList =
-            nodes
-                |> Dict.values
-                |> List.map
-                    (\n ->
-                        case n of
-                            TagNode x ->
-                                ( x.index, x.id )
+    nodes
+        |> Dict.toList
+        |> List.map
+            (\( id, node ) ->
+                case node of
+                    TagNode x ->
+                        ( id, [] )
 
-                            ArticleNode x ->
-                                ( x.index, x.id )
-                    )
-                |> List.sortBy Tuple.first
-                |> List.map Tuple.second
-
-        nodegraph : List ( NodeId, NodeId )
-        nodegraph =
-            nodes
-                |> Dict.values
-                |> List.map
-                    (\n ->
-                        case n of
-                            TagNode x ->
-                                []
-
-                            ArticleNode x ->
-                                let
-                                    xs : List Tag
-                                    xs =
-                                        x.tags
-                                in
-                                xs
-                                    |> List.map
-                                        (\t ->
-                                            ( x.index, t.index )
-                                        )
-                    )
-                |> List.foldl (\a b -> a ++ b) []
-    in
-    Graph.fromNodeLabelsAndEdgePairs stringList nodegraph
-        |> Graph.mapContexts initializeNode
-
-
-initializeNode : NodeContext String () -> NodeContext Entity ()
-initializeNode ctx =
-    { node = { id = ctx.node.id, label = Force.entity ctx.node.id ctx.node.label }
-    , incoming = ctx.incoming
-    , outgoing = ctx.outgoing
-    }
+                    ArticleNode x ->
+                        ( id, x.tags |> List.map (\t -> t.id) )
+            )

@@ -1,9 +1,8 @@
-module Model exposing (Article, Drag, Entity, Id, Model, Msg(..), Node(..), Nodes, Tag, height, width)
+module Model exposing (Article, Drag, Id, Model, Msg(..), Node(..), Nodes, Tag, height, width)
 
 import Dict exposing (Dict)
-import Force
-import Graph exposing (Graph, NodeId)
 import Http
+import Simulation
 import Time
 
 
@@ -13,9 +12,9 @@ type Msg
     | AllTags (Result Http.Error (List Tag))
     | TagFilterInput String
     | SubmitSearch
-    | GetRelated NodeId
-    | ShowNode NodeId
-    | DragStart NodeId ( Float, Float )
+    | GetRelated Id
+    | ShowNode Id
+    | DragStart Id ( Float, Float )
     | DragAt ( Float, Float )
     | DragEnd ( Float, Float )
     | Tick Time.Posix
@@ -28,8 +27,7 @@ type alias Model =
     , tagFilter : String
     , articleFilter : String
     , drag : Maybe Drag
-    , simulation : Force.State NodeId
-    , graph : Graph Entity ()
+    , simulation : Simulation.Simulation String
     }
 
 
@@ -46,7 +44,7 @@ height =
 type alias Drag =
     { start : ( Float, Float )
     , current : ( Float, Float )
-    , index : NodeId
+    , id : Id
     }
 
 
@@ -78,7 +76,3 @@ type Node
 
 type alias Nodes =
     Dict Id Node
-
-
-type alias Entity =
-    Force.Entity NodeId { value : String }
