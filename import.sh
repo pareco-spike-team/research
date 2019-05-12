@@ -12,3 +12,4 @@ cd dataImport
 node ./import.js $@
 echo = Update tags on articles =
 node ./updateArticleTags.js $@
+node ./galnetUpdate.js $@
