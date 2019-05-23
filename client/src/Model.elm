@@ -1,4 +1,4 @@
-module Model exposing (Article, Drag, Id, Model, Msg(..), Node(..), Nodes, Tag, height, width)
+module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, Tag, TextType(..), height, width)
 
 import Dict exposing (Dict)
 import Http
@@ -66,6 +66,7 @@ type alias Article =
         , title : String
         , text : String
         , tags : List Tag
+        , parsedText : List ParsedText
         }
 
 
@@ -76,3 +77,17 @@ type Node
 
 type alias Nodes =
     Dict Id Node
+
+
+type alias Index =
+    Int
+
+
+type alias ParsedText =
+    ( Index, String, TextType )
+
+
+type TextType
+    = TypeText
+    | TypeTag
+    | NewLine

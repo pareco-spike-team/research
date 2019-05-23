@@ -4,10 +4,10 @@ import Dict exposing (Dict)
 import Http
 import HttpBuilder exposing (..)
 import Json.Decode as Decode exposing (Decoder, field, string)
-import Json.Decode.Pipeline exposing (optional, required)
+import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import List.Extra
 import Maybe.Extra
-import Model exposing (Article, Drag, Model, Msg(..), Node(..), Nodes, Tag)
+import Model exposing (Article, Drag, Model, Msg(..), Node(..), Nodes, ParsedText, Tag, TextType(..))
 import Simulation exposing (Simulation)
 
 
@@ -71,10 +71,10 @@ update msg model =
                     ( model, Cmd.none )
 
                 Just (TagNode x) ->
-                    ( model, getArticlesWithTag x )
+                    ( model, getArticlesWithTag model x )
 
                 Just (ArticleNode x) ->
-                    ( model, getTagsForArticle model.nodes x ArticleSearchResult )
+                    ( model, getTagsForArticle model model.nodes x ArticleSearchResult )
 
         ShowNode id ->
             updateShowNode model id
@@ -139,7 +139,7 @@ updateShowNode model id =
         cmd =
             case node of
                 Just (ArticleNode a) ->
-                    getTagsForArticle Dict.empty a ArticleSelectedResult
+                    getTagsForArticle model Dict.empty a ArticleSelectedResult
 
                 _ ->
                     Cmd.none
@@ -167,7 +167,7 @@ search model =
     HttpBuilder.get "/api/articles"
         |> withHeader "Content-Type" "application/json"
         |> withQueryParams (Maybe.Extra.values [ tag, article ])
-        |> withExpectJson searchResultDecoder
+        |> withExpectJson (searchResultDecoder model)
         -- |> withTimeout (10 * Time.second)
         |> send ArticleSearchResult
 
@@ -272,8 +272,8 @@ articleSearchResult model articlesFound =
             updateShowNode newModel showDefault
 
 
-searchResultDecoder : Decoder (List Article)
-searchResultDecoder =
+searchResultDecoder : Model -> Decoder (List Article)
+searchResultDecoder model =
     let
         f : Article -> Decoder Article
         f a =
@@ -284,7 +284,7 @@ searchResultDecoder =
                     )
     in
     Decode.list
-        (field "article" articleDecoder
+        (field "article" (articleDecoder model)
             |> Decode.andThen (\a -> f a)
         )
 
@@ -306,12 +306,23 @@ tagDecoder =
         |> required "tag" string
 
 
-articleDecoder : Decoder Article
-articleDecoder =
+articleDecoder : Model -> Decoder Article
+articleDecoder model =
     let
         ctor : String -> String -> String -> String -> List Tag -> Article
         ctor id date title text tags =
-            { id = id, index = -1, date = date, title = title, text = text, tags = tags }
+            let
+                a =
+                    { id = id
+                    , index = -1
+                    , date = date
+                    , title = title
+                    , text = text
+                    , tags = tags
+                    , parsedText = []
+                    }
+            in
+            { a | parsedText = parseText model a }
     in
     Decode.succeed ctor
         |> required "id" string
@@ -335,18 +346,18 @@ getAllTags =
         |> send AllTags
 
 
-getArticlesWithTag : Tag -> Cmd Msg
-getArticlesWithTag tag =
+getArticlesWithTag : Model -> Tag -> Cmd Msg
+getArticlesWithTag model tag =
     --TODO: as with getTagsForArticle,
     HttpBuilder.get ("/api/tags/" ++ tag.id ++ "/articles")
         |> withHeader "Content-Type" "application/json"
-        |> withExpectJson searchResultDecoder
+        |> withExpectJson (searchResultDecoder model)
         -- |> withTimeout (10 * Time.second)
         |> send ArticleSearchResult
 
 
-getTagsForArticle : Nodes -> Article -> (Result Http.Error (List Article) -> Msg) -> Cmd Msg
-getTagsForArticle nodes article msg =
+getTagsForArticle : Model -> Nodes -> Article -> (Result Http.Error (List Article) -> Msg) -> Cmd Msg
+getTagsForArticle model nodes article msg =
     let
         include =
             Dict.values nodes
@@ -365,7 +376,7 @@ getTagsForArticle nodes article msg =
     HttpBuilder.get ("/api/articles/" ++ article.id ++ "/tags")
         |> withHeader "Content-Type" "application/json"
         |> withQueryParams [ ( "includeArticles", String.join "," include ) ]
-        |> withExpectJson searchResultDecoder
+        |> withExpectJson (searchResultDecoder model)
         -- |> withTimeout (10 * Time.second)
         |> send msg
 
@@ -383,3 +394,123 @@ buildGraph nodes =
                     ArticleNode x ->
                         ( id, x.tags |> List.map (\t -> t.id) )
             )
+
+
+
+{----}
+{----}
+
+
+parseText : Model -> Article -> List ParsedText
+parseText model article =
+    let
+        lowerCaseText =
+            String.toLower article.text
+
+        tagsLower =
+            model.allTags |> List.map (\x -> ( String.toLower x.tag, x ))
+
+        doTag : ( String, Model.Tag ) -> List ParsedText -> List ParsedText
+        doTag ( strTag, tag ) acc =
+            let
+                alphabet =
+                    "abcdefghijklmnopqrstuvwxyz"
+
+                parts : List ( Int, String, TextType )
+                parts =
+                    String.indexes strTag lowerCaseText
+                        |> List.map (\idx -> ( idx, tag.tag, TypeTag ))
+                        |> List.filter
+                            (\( idx, tag_, typeTag ) ->
+                                let
+                                    leftSlice =
+                                        String.slice (idx - 1) idx lowerCaseText
+
+                                    len =
+                                        String.length tag_
+
+                                    rightSlice =
+                                        String.slice (idx + len) (idx + len + 1) lowerCaseText
+                                in
+                                not
+                                    (String.contains leftSlice alphabet
+                                        || String.contains rightSlice alphabet
+                                    )
+                            )
+            in
+            parts ++ acc
+
+        parsed : List ParsedText
+        parsed =
+            tagsLower
+                |> List.foldl doTag []
+                |> List.sortBy (\( a, _, _ ) -> a)
+                |> List.foldl
+                    (\( tidx, ttag, ttype ) acc ->
+                        case acc of
+                            ( idx, tag, type_ ) :: tail ->
+                                if (idx + String.length tag) > tidx then
+                                    if String.length ttag > String.length tag then
+                                        ( tidx, ttag, ttype ) :: tail
+
+                                    else
+                                        ( idx, tag, type_ ) :: tail
+
+                                else
+                                    ( tidx, ttag, ttype ) :: acc
+
+                            _ ->
+                                ( tidx, ttag, ttype ) :: acc
+                    )
+                    []
+    in
+    List.foldl
+        (\p acc ->
+            let
+                hh =
+                    List.head acc
+
+                ( index, text, _ ) =
+                    Maybe.withDefault ( 0, article.text, TypeText ) hh
+
+                ( idx, tag, _ ) =
+                    p
+
+                left =
+                    ( index, String.slice index idx article.text, TypeText )
+
+                strLen =
+                    String.length tag
+
+                center =
+                    ( idx, String.slice idx (idx + strLen) article.text, TypeTag )
+
+                rest =
+                    ( idx + strLen, String.dropLeft (idx + strLen) article.text, TypeText )
+            in
+            rest :: center :: left :: (List.tail acc |> Maybe.withDefault [])
+        )
+        []
+        (parsed
+            |> List.reverse
+        )
+        |> List.foldl
+            (\x acc ->
+                case x of
+                    ( idx, text, TypeText ) ->
+                        (String.split "\n" text
+                            |> List.map
+                                (\i ->
+                                    if i == "" then
+                                        ( idx, "\n", NewLine )
+
+                                    else
+                                        ( idx, i, TypeText )
+                                )
+                        )
+                            ++ acc
+
+                    _ ->
+                        x :: acc
+            )
+            []

@@ -8,7 +8,7 @@ import Html.Attributes exposing (autofocus, class, placeholder, style, type_, va
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Maybe.Extra
-import Model exposing (Article, Model, Msg(..), Node)
+import Model exposing (Article, Model, Msg(..), Node, TextType)
 import Simulation
 import TypedSvg exposing (circle, g, line, rect, svg, text_, title)
 import TypedSvg.Attributes exposing (class, color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor, viewBox)
@@ -66,14 +66,14 @@ showNode model node =
                     [ text article.text ]
 
                 parsedText =
-                    parseText model article
+                    article.parsedText
                         |> List.map
                             (\( _, text_, type_ ) ->
                                 case type_ of
-                                    TypeText ->
+                                    Model.TypeText ->
                                         span [] [ text text_ ]
 
-                                    TypeTag ->
+                                    Model.TypeTag ->
                                         let
                                             bgColor =
                                                 if List.any (\x -> String.toLower x == String.toLower text_) tags then
@@ -84,7 +84,7 @@ showNode model node =
                                         in
                                         span [ style "background-color" bgColor ] [ text text_ ]
 
-                                    NewLine ->
+                                    Model.NewLine ->
                                         br [] []
                             )
             in
@@ -292,136 +292,3 @@ drawGraph model =
         [ svg [ viewBox 0 0 Model.width Model.height ]
             (edges :: nodes)
         ]
-
-
-
-{----}
-
-
-type alias Index =
-    Int
-
-
-type alias ParsedText =
-    ( Index, String, TextType )
-
-
-type TextType
-    = TypeText
-    | TypeTag
-    | NewLine
-
-
-parseText : Model -> Article -> List ParsedText
-parseText model article =
-    let
-        lowerCaseText =
-            String.toLower article.text
-
-        tagsLower =
-            model.allTags |> List.map (\x -> ( String.toLower x.tag, x ))
-
-        doTag : ( String, Model.Tag ) -> List ParsedText -> List ParsedText
-        doTag ( strTag, tag ) acc =
-            let
-                alphabet =
-                    "abcdefghijklmnopqrstuvwxyz"
-
-                parts : List ( Int, String, TextType )
-                parts =
-                    String.indexes strTag lowerCaseText
-                        |> List.map (\idx -> ( idx, tag.tag, TypeTag ))
-                        |> List.filter
-                            (\( idx, tag_, typeTag ) ->
-                                let
-                                    leftSlice =
-                                        String.slice (idx - 1) idx lowerCaseText
-
-                                    len =
-                                        String.length tag_
-
-                                    rightSlice =
-                                        String.slice (idx + len) (idx + len + 1) lowerCaseText
-                                in
-                                not
-                                    (String.contains leftSlice alphabet
-                                        || String.contains rightSlice alphabet
-                                    )
-                            )
-            in
-            parts ++ acc
-
-        parsed : List ParsedText
-        parsed =
-            tagsLower
-                |> List.foldl doTag []
-                |> List.sortBy (\( a, _, _ ) -> a)
-                |> List.foldl
-                    (\( tidx, ttag, ttype ) acc ->
-                        case acc of
-                            ( idx, tag, type_ ) :: tail ->
-                                if (idx + String.length tag) > tidx then
-                                    if String.length ttag > String.length tag then
-                                        ( tidx, ttag, ttype ) :: tail
-
-                                    else
-                                        ( idx, tag, type_ ) :: tail
-
-                                else
-                                    ( tidx, ttag, ttype ) :: acc
-
-                            _ ->
-                                ( tidx, ttag, ttype ) :: acc
-                    )
-                    []
-    in
-    List.foldl
-        (\p acc ->
-            let
-                hh =
-                    List.head acc
-
-                ( index, text, _ ) =
-                    Maybe.withDefault ( 0, article.text, TypeText ) hh
-
-                ( idx, tag, _ ) =
-                    p
-
-                left =
-                    ( index, String.slice index idx article.text, TypeText )
-
-                strLen =
-                    String.length tag
-
-                center =
-                    ( idx, String.slice idx (idx + strLen) article.text, TypeTag )
-
-                rest =
-                    ( idx + strLen, String.dropLeft (idx + strLen) article.text, TypeText )
-            in
-            rest :: center :: left :: (List.tail acc |> Maybe.withDefault [])
-        )
-        []
-        (parsed
-            |> List.reverse
-        )
-        |> List.foldl
-            (\x acc ->
-                case x of
-                    ( idx, text, TypeText ) ->
-                        (String.split "\n" text
-                            |> List.map
-                                (\i ->
-                                    if i == "" then
-                                        ( idx, "\n", NewLine )
-
-                                    else
-                                        ( idx, i, TypeText )
-                                )
-                        )
-                            ++ acc
-
-                    _ ->
-                        x :: acc
-            )
-            []
