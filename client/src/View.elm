@@ -324,10 +324,30 @@ parseText model article =
         doTag : ( String, Model.Tag ) -> List ParsedText -> List ParsedText
         doTag ( strTag, tag ) acc =
             let
+                alphabet =
+                    "abcdefghijklmnopqrstuvwxyz"
+
                 parts : List ( Int, String, TextType )
                 parts =
                     String.indexes strTag lowerCaseText
-                        |> List.map (\x -> ( x, tag.tag, TypeTag ))
+                        |> List.map (\idx -> ( idx, tag.tag, TypeTag ))
+                        |> List.filter
+                            (\( idx, tag_, typeTag ) ->
+                                let
+                                    leftSlice =
+                                        String.slice (idx - 1) idx lowerCaseText
+
+                                    len =
+                                        String.length tag_
+
+                                    rightSlice =
+                                        String.slice (idx + len) (idx + len + 1) lowerCaseText
+                                in
+                                not
+                                    (String.contains leftSlice alphabet
+                                        || String.contains rightSlice alphabet
+                                    )
+                            )
             in
             parts ++ acc
 
