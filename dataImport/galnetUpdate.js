@@ -61,7 +61,6 @@ async function saveArticles(articles) {
 async function readFeed() {
 	const tags = await getAllTags();
 	const tagRegexes = tags.map(x => {
-		// return new RegExp(`.*[^a-z]${x.tag}[^a-z].*`, "muisg");
 		return { tag: x, regex: new RegExp(`[^a-z]${x.toLowerCase()}[^a-z]`, "muisg") };
 	});
 	const query = { uri: uri };
