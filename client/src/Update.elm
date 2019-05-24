@@ -20,6 +20,17 @@ update msg model =
         SubmitSearch ->
             ( model, search model )
 
+        ClearAll ->
+            ( { model
+                | nodes = Dict.empty
+                , showNode = Nothing
+                , tagFilter = ""
+                , articleFilter = ""
+                , simulation = Simulation.clear model.simulation
+              }
+            , Cmd.none
+            )
+
         AllTags (Ok tags) ->
             ( { model | allTags = tags }, Cmd.none )
 

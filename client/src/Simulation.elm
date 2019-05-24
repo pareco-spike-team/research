@@ -1,4 +1,4 @@
-module Simulation exposing (Edge, Node, Simulation, add, edges, init, isCompleted, lockPosition, movePosition, node, nodes, tick, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
+module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, tick, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
 
 import Dict exposing (Dict)
 import Maybe.Extra
@@ -187,6 +187,11 @@ init center =
     , nodes = Dict.empty
     , graph = Dict.empty
     }
+
+
+clear : Simulation comparable -> Simulation comparable
+clear s =
+    { s | nodes = Dict.empty, graph = Dict.empty, tickCount = 0 }
 
 
 tick : Simulation comparable -> Simulation comparable

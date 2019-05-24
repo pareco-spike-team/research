@@ -12,6 +12,7 @@ type Msg
     | AllTags (Result Http.Error (List Tag))
     | TagFilterInput String
     | SubmitSearch
+    | ClearAll
     | GetRelated Id
     | ShowNode Id
     | DragStart Id ( Float, Float )

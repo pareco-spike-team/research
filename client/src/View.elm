@@ -202,6 +202,20 @@ outline: none;
                         ]
                         []
                     ]
+                , button
+                    [ type_ "button"
+                    , value "Clear"
+                    , onClick ClearAll
+                    , style "border" "0"
+                    , style "background-color" currentTheme.form.background
+                    ]
+                    [ i
+                        [ class [ "fa-2x", "fas fa-trash-alt" ]
+                        , style "color" currentTheme.form.button
+                        , style "background-color" currentTheme.form.background
+                        ]
+                        []
+                    ]
                 ]
             ]
         ]
