@@ -15,7 +15,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         TagFilterInput s ->
-            ( { model | tagFilter = s }, Cmd.none )
+            ( { model | tagFilter = s, articleFilter = s }, Cmd.none )
 
         SubmitSearch ->
             ( model, search model )
