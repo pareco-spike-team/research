@@ -18,24 +18,25 @@ async function searchByTag(filter) {
 async function searchArticles(tags, filter) {
 	const driver = getDriver();
 	const s = driver.session();
-	const tagMatch = tags ?
-		'(?muis)' + (
-			tags.
+	const buildMatch = xs => {
+		return '(?muis)' + (
+			xs.
 				split(',').
 				map(x => x.trim()).
 				map(x =>
 					(x.length >= 4) ?
 						`.*${(x.toLowerCase())}.*` :
 						`${(x.toLowerCase())}`).
-				join('|')) :
-		null;
-	const articleMatch = filter ? `(?muis)${filter}` : null;
+				join('|'));
+	};
+	const tagMatch = tags ? buildMatch(tags) : null;
+	const articleMatch = filter ? buildMatch(filter) : null;
 
 	let query = [
 		"MATCH (article:Article)-[:Tag]->(tag:Tag)",
 		(tagMatch || articleMatch) ? "WHERE" : null,
 		(tagMatch) ? "tag.tag =~ {tag}" : null,
-		(tagMatch && articleMatch) ? "AND" : null,
+		(tagMatch && articleMatch) ? "OR" : null,
 		(articleMatch) ? "(article.title =~ {article} OR article.text =~ {article})" : null,
 		"RETURN article, tag"
 	].
