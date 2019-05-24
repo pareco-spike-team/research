@@ -50,9 +50,9 @@ showNode model node =
     case node of
         Model.TagNode n ->
             div []
-                [ span [ style "font-weight" "bold" ] [ text "Tag:" ]
+                [ span [ style "font-weight" "bold", style "color" currentTheme.text.text ] [ text "Tag:" ]
                 , p [] []
-                , span [] [ text n.tag ]
+                , span [ style "color" currentTheme.text.text ] [ text n.tag ]
                 ]
 
         Model.ArticleNode article ->
@@ -62,16 +62,13 @@ showNode model node =
                         |> List.map (\x -> x.tag)
                         |> List.sort
 
-                theText =
-                    [ text article.text ]
-
                 parsedText =
                     article.parsedText
                         |> List.map
                             (\( _, text_, type_ ) ->
                                 case type_ of
                                     Model.TypeText ->
-                                        span [] [ text text_ ]
+                                        span [ style "color" currentTheme.text.text ] [ text text_ ]
 
                                     Model.TypeTag ->
                                         let
@@ -82,7 +79,12 @@ showNode model node =
                                                 else
                                                     currentTheme.text.possibleTag
                                         in
-                                        span [ style "background-color" bgColor ] [ text text_ ]
+                                        span
+                                            [ style "color" currentTheme.text.text
+                                            , style "background-color" bgColor
+                                            , style "border-radius" "3px"
+                                            ]
+                                            [ text text_ ]
 
                                     Model.NewLine ->
                                         br [] []
@@ -91,18 +93,39 @@ showNode model node =
             div
                 []
                 [ div [ style "font-weight" "bold" ]
-                    [ div [] [ text article.date ]
-                    , div [] [ text article.title ]
+                    [ div [ style "color" currentTheme.text.text ] [ text article.date ]
+                    , div [ style "color" currentTheme.text.text ] [ text article.title ]
                     ]
                 , p [] []
                 , span [] parsedText
                 , p [] []
-                , div [] [ text "Tags: " ]
+                , div
+                    [ style "color" currentTheme.text.title
+                    , style "font-weight" "bold"
+                    ]
+                    [ text "Tags: " ]
                 , div []
-                    (tags
-                        |> List.map (\x -> span [] [ text x ])
-                        |> List.intersperse (br [] [])
-                    )
+                    [ ul
+                        [ style "margin-block-start" "0.5em"
+                        , style "padding-inline-start" "0.5em"
+                        ]
+                        (tags
+                            |> List.map
+                                (\x ->
+                                    li
+                                        [ style "list-style-type" "none"
+                                        , style "color" currentTheme.text.text
+                                        , style "background-color" currentTheme.text.tag
+                                        , style "border-radius" "3px"
+                                        , style "margin" "0.1em"
+                                        , style "padding" "0.2em"
+                                        , style "display" "table"
+                                        ]
+                                        [ text x ]
+                                )
+                         -- |> List.intersperse (br [] [])
+                        )
+                    ]
                 ]
 
 
@@ -128,7 +151,7 @@ outline: none;
                 [ div
                     [ style "display" "flex"
                     , style "flex-direction" "row"
-                    , style "background-color" currentTheme.form.inputFieldBackground
+                    , style "background-color" currentTheme.form.background
                     , style "border-radius" "5px"
                     ]
                     [ span
@@ -136,7 +159,13 @@ outline: none;
                         , style "line-height" "2em"
                         , style "border" "0"
                         ]
-                        [ i [ class [ "fas fa-dollar-sign" ] ] [] ]
+                        [ i
+                            [ class [ "fas fa-dollar-sign" ]
+                            , style "color" currentTheme.form.button
+                            , style "background-color" currentTheme.form.background
+                            ]
+                            []
+                        ]
                     , input
                         [ type_ "search"
                         , placeholder "type search query"
@@ -148,6 +177,8 @@ outline: none;
                         , style "padding-bottom" "0.3em"
                         , style "border" "0"
                         , style "border-radius" "5px"
+                        , style "background-color" currentTheme.form.inputFieldBackground
+                        , style "color" currentTheme.text.text
                         ]
                         []
                     ]
@@ -164,7 +195,13 @@ outline: none;
                     , style "border" "0"
                     , style "background-color" currentTheme.form.background
                     ]
-                    [ i [ class [ "fa-2x", "fas fa-play" ] ] [] ]
+                    [ i
+                        [ class [ "fa-2x", "fas fa-play" ]
+                        , style "color" currentTheme.form.button
+                        , style "background-color" currentTheme.form.background
+                        ]
+                        []
+                    ]
                 ]
             ]
         ]
