@@ -29,27 +29,33 @@ async function searchArticles(tags, filter) {
 						`${(x.toLowerCase())}`).
 				join('|'));
 	};
-	const tagMatch = tags ? buildMatch(tags) : null;
-	const articleMatch = filter ? buildMatch(filter) : null;
+	const tagQuery =
+		tags ?
+			runQuery(s)
+				("MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE tag.tag =~ {tag} RETURN article, tag")
+				({ tag: buildMatch(tags) }) :
+			Promise.resolve([]);
+	const articleQuery =
+		filter ?
+			runQuery(s)
+				("MATCH (article:Article) WHERE article.title =~ {article} OR article.text =~ {article} RETURN article")
+				({ article: buildMatch(filter) }) :
+			Promise.resolve([]);
 
-	let query = [
-		"MATCH (article:Article)-[:Tag]->(tag:Tag)",
-		(tagMatch || articleMatch) ? "WHERE" : null,
-		(tagMatch) ? "tag.tag =~ {tag}" : null,
-		(tagMatch && articleMatch) ? "OR" : null,
-		(articleMatch) ? "(article.title =~ {article} OR article.text =~ {article})" : null,
-		"RETURN article, tag"
-	].
-		filter(x => x != null).
-		join(' ');
-	const args = {
-		tag: tagMatch,
-		article: articleMatch
-	};
+	const [tagsResult, articleResult] = await Promise.all([tagQuery, articleQuery]);
 
-	const result = await runQuery(s)(query)(args);
+	const articleMap =
+		new Map(tagsResult.map(x => [x.article.id, x]));
+
+	const result =
+		articleResult.reduce((res, x) => {
+			if (!articleMap.has(x.article.id)) {
+				res.set(x.article.id, x);
+			}
+			return res;
+		}, articleMap);
 	driver.close();
-	return result;
+	return [...result.values()];
 }
 
 async function getTagsForArticle(articleId, includeArticles) {

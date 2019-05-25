@@ -3,7 +3,7 @@ module Update exposing (getAllTags, update)
 import Dict exposing (Dict)
 import Http
 import HttpBuilder exposing (..)
-import Json.Decode as Decode exposing (Decoder, field, string)
+import Json.Decode as Decode exposing (Decoder, field, maybe, string)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import List.Extra
 import Maybe.Extra
@@ -300,10 +300,10 @@ searchResultDecoder model =
     let
         f : Article -> Decoder Article
         f a =
-            field "tag" tagDecoder
+            maybe (field "tag" tagDecoder)
                 |> Decode.map
                     (\t ->
-                        { a | tags = [ t ] }
+                        { a | tags = Maybe.Extra.unwrap [] (\x -> [ x ]) t }
                     )
     in
     Decode.list
