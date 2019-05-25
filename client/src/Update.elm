@@ -35,12 +35,20 @@ update msg model =
             ( { model | allTags = tags }, Cmd.none )
 
         AllTags (Err e) ->
+            let
+                _ =
+                    Debug.log "fail" e
+            in
             ( model, Cmd.none )
 
         ArticleSearchResult (Ok articles) ->
             articleSearchResult model articles
 
         ArticleSearchResult (Err e) ->
+            let
+                _ =
+                    Debug.log "fail" e
+            in
             ( model, Cmd.none )
 
         ArticleSelectedResult (Ok articles) ->
@@ -70,6 +78,10 @@ update msg model =
             ( { model | showNode = theArticle }, Cmd.none )
 
         ArticleSelectedResult (Err e) ->
+            let
+                _ =
+                    Debug.log "fail" e
+            in
             ( model, Cmd.none )
 
         GetRelated id ->
