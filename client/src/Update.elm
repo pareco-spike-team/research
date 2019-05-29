@@ -158,7 +158,9 @@ updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )
 updateShowNode model id =
     let
         node =
-            Dict.get id model.nodes
+            Maybe.Extra.or
+                (Dict.get id model.nodes)
+                (Dict.values model.nodes |> List.head)
 
         cmd =
             case node of
