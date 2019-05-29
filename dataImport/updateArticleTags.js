@@ -19,7 +19,11 @@ async function tagArticles() {
 	const driver = getDriver();
 	let session = driver.session();
 	const query = `
-			MATCH (a:Article) WHERE a.text =~ {tagMatch} OR a.title =~ {tagMatch}
+			MATCH (a:Article)
+			WHERE (a.text =~ {tagMatch} OR a.title =~ {tagMatch})
+				AND a.title <> 'Week in Review'
+				AND (NOT a.title STARTS WITH 'Community Goal:')
+				AND (NOT a.title STARTS WITH 'Freelance Report:')
 			MATCH (t:Tag) WHERE t.tag = {tag}
 			MERGE (a)-[:Tag]->(t)
 			RETURN count(a) AS articlesUpdated`;
