@@ -13,23 +13,7 @@ const
 
 (function createHttpServer() {
 	const app = webApp.start;
-	switch (config.env) {
-		case 'dev':
-			app.listen(httpPort);
-			break;
-		case 'stage':
-			app.listen(httpPort);
-			break;
-		case 'test':
-			app.listen(httpPort);
-			break;
-		case 'production':
-			app.listen(httpPort);
-			break;
-
-		default:
-			break;
-	}
+	app.listen(httpPort);
 })();
 
 const exitNotification = (message, from) => {
