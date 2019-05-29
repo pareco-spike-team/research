@@ -490,53 +490,57 @@ parseText model article =
                     )
                     []
     in
-    List.foldl
-        (\p acc ->
-            let
-                hh =
-                    List.head acc
+    if List.length parsed == 0 then
+        [ ( 0, article.text, TypeText ) ]
 
-                ( index, text, _ ) =
-                    Maybe.withDefault ( 0, article.text, TypeText ) hh
+    else
+        List.foldl
+            (\p acc ->
+                let
+                    hh =
+                        List.head acc
 
-                ( idx, tag, _ ) =
-                    p
+                    ( index, text, _ ) =
+                        Maybe.withDefault ( 0, article.text, TypeText ) hh
 
-                left =
-                    ( index, String.slice index idx article.text, TypeText )
+                    ( idx, tag, _ ) =
+                        p
 
-                strLen =
-                    String.length tag
+                    left =
+                        ( index, String.slice index idx article.text, TypeText )
 
-                center =
-                    ( idx, String.slice idx (idx + strLen) article.text, TypeTag )
+                    strLen =
+                        String.length tag
 
-                rest =
-                    ( idx + strLen, String.dropLeft (idx + strLen) article.text, TypeText )
-            in
-            rest :: center :: left :: (List.tail acc |> Maybe.withDefault [])
-        )
-        []
-        (parsed
-            |> List.reverse
-        )
-        |> List.foldl
-            (\x acc ->
-                case x of
-                    ( idx, text, TypeText ) ->
-                        (String.split "\n" text
-                            |> List.map
-                                (\i ->
-                                    if i == "" then
-                                        ( idx, "\n", NewLine )
+                    center =
+                        ( idx, String.slice idx (idx + strLen) article.text, TypeTag )
 
-                                    else
-                                        ( idx, i, TypeText )
-                                )
-                        )
-                            ++ acc
-
-                    _ ->
-                        x :: acc
+                    rest =
+                        ( idx + strLen, String.dropLeft (idx + strLen) article.text, TypeText )
+                in
+                rest :: center :: left :: (List.tail acc |> Maybe.withDefault [])
             )
             []
+            (parsed
+                |> List.reverse
+            )
+            |> List.foldl
+                (\x acc ->
+                    case x of
+                        ( idx, text, TypeText ) ->
+                            (String.split "\n" text
+                                |> List.map
+                                    (\i ->
+                                        if i == "" then
+                                            ( idx, "\n", NewLine )
+
+                                        else
+                                            ( idx, i, TypeText )
+                                    )
+                            )
+                                ++ acc
+
+                        _ ->
+                            x :: acc
+                )
+                []
