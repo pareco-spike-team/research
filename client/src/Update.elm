@@ -74,6 +74,7 @@ update msg model =
                             Dict.empty
                         |> Dict.get articleId
                         |> Maybe.map ArticleNode
+                        |> Maybe.Extra.unwrap model.showNode Just
             in
             ( { model | showNode = theArticle }, Cmd.none )
 
