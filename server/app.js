@@ -50,6 +50,9 @@ function setupRoutes(app, config) {
 	const
 		routes = require('./routes/index.js');
 
+	app.get('/ping', function(req, res) {
+		res.send('pong');
+	});
 	app.get('/*', function(req, res, next) {
 		const ignore = /^\/(lib)|(css)|(js)|(img)|(api)|(fonts).*$/;
 		if (ignore.test(req.originalUrl)) {

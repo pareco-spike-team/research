@@ -113,6 +113,5 @@ module.exports = () => {
 	router.get('/api/articles', api.searchArticles);
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
 
-
 	return router;
 };
