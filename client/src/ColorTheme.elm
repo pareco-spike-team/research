@@ -30,6 +30,8 @@ type alias ColorTheme =
         , node :
             { tag : GraphNodeColor
             , article : GraphNodeColor
+            , selectedTag : GraphNodeColor
+            , selectedArticle : GraphNodeColor
             , unknown : GraphNodeColor
             }
         }
@@ -62,7 +64,17 @@ lightNeoTheme =
                 , strokeColor = Color.darkGreen
                 , textColor = Color.black
                 }
+            , selectedTag =
+                { fillColor = Color.green
+                , strokeColor = Color.darkGreen
+                , textColor = Color.black
+                }
             , article =
+                { fillColor = Color.lightBlue
+                , strokeColor = Color.blue
+                , textColor = Color.black
+                }
+            , selectedArticle =
                 { fillColor = Color.lightBlue
                 , strokeColor = Color.blue
                 , textColor = Color.black
@@ -75,6 +87,15 @@ lightNeoTheme =
             }
         }
     }
+
+
+
+{--
+pick a color for xx1
+use this: https://maketintsandshades.com/#6DCE9E
+xx2 is 2 shades darker
+xx3 is 3 shades lighter
+--}
 
 
 darkNeoTheme : ColorTheme
@@ -93,16 +114,28 @@ darkNeoTheme =
             Color.rgb255 191 133 214
 
         green1 =
+            -- 6DCE9E
             Color.rgb255 109 206 158
 
         green2 =
-            Color.rgb255 96 181 139
+            -- 57A57E
+            Color.rgb255 87 165 126
+
+        green3 =
+            --99DDBB
+            Color.rgb255 153 221 187
 
         yellow1 =
+            -- FFD86E
             Color.rgb255 255 216 110
 
         yellow2 =
-            Color.rgb255 237 186 57
+            -- CCAD58
+            Color.rgb255 204 173 88
+
+        yellow3 =
+            -- FFE49A
+            Color.rgb255 255 228 154
 
         brownish =
             Color.rgb255 76 54 10
@@ -131,9 +164,19 @@ darkNeoTheme =
                 , strokeColor = yellow2
                 , textColor = brownish
                 }
+            , selectedTag =
+                { fillColor = yellow1
+                , strokeColor = yellow3
+                , textColor = brownish
+                }
             , article =
                 { fillColor = green1
                 , strokeColor = green2
+                , textColor = brownish
+                }
+            , selectedArticle =
+                { fillColor = green1
+                , strokeColor = green3
                 , textColor = brownish
                 }
             , unknown =

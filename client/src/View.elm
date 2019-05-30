@@ -245,8 +245,8 @@ onMouseDown node =
     Mouse.onDown (.clientPos >> DragStart node.id)
 
 
-nodeElement : Model.Nodes -> Simulation.Node Model.Id -> List (Html Msg)
-nodeElement nodes simulationNode =
+nodeElement : Model.Nodes -> Bool -> Simulation.Node Model.Id -> List (Html Msg)
+nodeElement nodes selected simulationNode =
     let
         fullTitle =
             Dict.get simulationNode.id nodes
@@ -282,15 +282,28 @@ nodeElement nodes simulationNode =
                     )
                     ""
 
+        strokeWidth_ =
+            if selected then
+                6.0
+
+            else
+                4.0
+
         { fillColor, strokeColor, textColor } =
             Dict.get simulationNode.id nodes
                 |> Maybe.Extra.unwrap currentTheme.graph.node.unknown
                     (\x ->
-                        case x of
-                            Model.TagNode _ ->
+                        case ( selected, x ) of
+                            ( True, Model.TagNode _ ) ->
+                                currentTheme.graph.node.selectedTag
+
+                            ( False, Model.TagNode _ ) ->
                                 currentTheme.graph.node.tag
 
-                            Model.ArticleNode _ ->
+                            ( True, Model.ArticleNode _ ) ->
+                                currentTheme.graph.node.selectedArticle
+
+                            ( False, Model.ArticleNode _ ) ->
                                 currentTheme.graph.node.article
                     )
     in
@@ -298,7 +311,7 @@ nodeElement nodes simulationNode =
         [ InEm.r 2.3
         , fill (Fill fillColor)
         , stroke strokeColor
-        , strokeWidth 3
+        , strokeWidth strokeWidth_
         , cx simulationNode.x
         , cy simulationNode.y
         , style "cursor" "pointer"
@@ -340,10 +353,26 @@ drawGraph model =
                 |> List.map linkElement
                 |> g [ class [ "links" ] ]
 
+        isSelected : Simulation.Node Model.Id -> Bool
+        isSelected node =
+            case ( model.selectedNode, node ) of
+                ( Model.Selected (Model.ArticleNode x), y ) ->
+                    x.id == y.id
+
+                ( Model.Selected (Model.TagNode x), y ) ->
+                    x.id == y.id
+
+                ( _, _ ) ->
+                    False
+
+        toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
+        toNodeElement x =
+            nodeElement model.nodes (isSelected x) x
+
         nodes : List (Svg Msg)
         nodes =
             Simulation.nodes model.simulation
-                |> List.map (nodeElement model.nodes)
+                |> List.map toNodeElement
                 |> List.map (g [ class [ "nodes" ] ])
     in
     div [ style "background-color" currentTheme.graph.background, style "border-radius" "5px" ]
