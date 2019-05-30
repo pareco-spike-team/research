@@ -138,23 +138,24 @@ darkNeoTheme =
             Color.rgb255 255 228 154
 
         brownish =
-            Color.rgb255 76 54 10
+            -- 443109
+            Color.rgb255 68 49 9
     in
-    { background = "#282C32"
-    , nodeBackground = "#4A4F5B"
+    { background = "#181A1E"
+    , nodeBackground = "#282C32"
     , text =
-        { tag = "#31343D"
-        , possibleTag = "#7C7600"
+        { tag = "#00635E"
+        , possibleTag = "#635E00"
         , text = "#FFFFFF"
-        , title = "#EEEEEF"
+        , title = "#EAEAEB"
         }
     , form =
-        { background = "#4A4F5B"
-        , inputFieldBackground = "#282C32"
-        , button = "#D2D4D7"
+        { background = "#282C32"
+        , inputFieldBackground = "#181A1E"
+        , button = "#D4D5D6"
         }
     , graph =
-        { background = "#4A4F5B"
+        { background = "#282C32"
         , link =
             { background = gray
             }
