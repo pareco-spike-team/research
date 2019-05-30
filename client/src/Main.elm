@@ -27,7 +27,7 @@ init _ =
         model : Model
         model =
             { nodes = Dict.empty
-            , showNode = Nothing
+            , selectedNode = Model.NoneSelected
             , allTags = []
             , tagFilter = ""
             , articleFilter = ""

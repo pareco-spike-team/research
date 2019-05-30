@@ -23,7 +23,7 @@ update msg model =
         ClearAll ->
             ( { model
                 | nodes = Dict.empty
-                , showNode = Nothing
+                , selectedNode = Model.NoneSelected
                 , tagFilter = ""
                 , articleFilter = ""
                 , simulation = Simulation.clear model.simulation
@@ -54,11 +54,14 @@ update msg model =
         ArticleSelectedResult (Ok articles) ->
             let
                 articleId =
-                    case model.showNode of
-                        Just (ArticleNode a) ->
-                            a.id
+                    case model.selectedNode of
+                        Model.Selected (ArticleNode x) ->
+                            x.id
 
-                        _ ->
+                        Model.Selected (TagNode x) ->
+                            x.id
+
+                        Model.NoneSelected ->
                             ""
 
                 theArticle =
@@ -74,9 +77,9 @@ update msg model =
                             Dict.empty
                         |> Dict.get articleId
                         |> Maybe.map ArticleNode
-                        |> Maybe.Extra.unwrap model.showNode Just
+                        |> Maybe.Extra.unwrap model.selectedNode Model.Selected
             in
-            ( { model | showNode = theArticle }, Cmd.none )
+            ( { model | selectedNode = theArticle }, Cmd.none )
 
         ArticleSelectedResult (Err e) ->
             let
@@ -161,16 +164,20 @@ updateShowNode model id =
             Maybe.Extra.or
                 (Dict.get id model.nodes)
                 (Dict.values model.nodes |> List.head)
+                |> Maybe.Extra.unwrap Model.NoneSelected (\x -> Model.Selected x)
 
         cmd =
             case node of
-                Just (ArticleNode a) ->
-                    getTagsForArticle model Dict.empty a ArticleSelectedResult
+                Model.Selected (ArticleNode x) ->
+                    getTagsForArticle model Dict.empty x ArticleSelectedResult
 
-                _ ->
+                Model.Selected (TagNode x) ->
+                    Cmd.none
+
+                Model.NoneSelected ->
                     Cmd.none
     in
-    ( { model | showNode = node }, cmd )
+    ( { model | selectedNode = node }, cmd )
 
 
 search : Model -> Cmd Msg
@@ -290,11 +297,11 @@ articleSearchResult model articlesFound =
                     (\x -> x.id)
                 |> Debug.log "default"
     in
-    case model.showNode of
-        Just x ->
+    case model.selectedNode of
+        Model.Selected _ ->
             ( newModel, Cmd.none )
 
-        Nothing ->
+        Model.NoneSelected ->
             updateShowNode newModel showDefault
 
 

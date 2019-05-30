@@ -1,4 +1,4 @@
-module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, Tag, TextType(..), height, width)
+module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, SelectedNode(..), Tag, TextType(..), height, width)
 
 import Dict exposing (Dict)
 import Http
@@ -23,7 +23,7 @@ type Msg
 
 type alias Model =
     { nodes : Nodes
-    , showNode : Maybe Node
+    , selectedNode : SelectedNode
     , allTags : List Tag
     , tagFilter : String
     , articleFilter : String
@@ -74,6 +74,11 @@ type alias Article =
 type Node
     = ArticleNode Article
     | TagNode Tag
+
+
+type SelectedNode
+    = NoneSelected
+    | Selected Node
 
 
 type alias Nodes =

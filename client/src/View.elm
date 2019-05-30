@@ -28,25 +28,32 @@ view model =
         [ searchBox model
         , div [ style "display" "flex", style "flex-direction" "row" ]
             [ div [ style "flex-grow" "1", style "min-width" "75%" ] [ drawGraph model ]
-            , Maybe.Extra.unwrap (text "")
-                (\nodeToShow ->
-                    div
-                        [ style "background-color" currentTheme.nodeBackground
-                        , style "border-radius" "5px"
-                        , style "padding" "0.5em"
-                        , style "margin-left" "0.8em"
-                        , style "margin-right" "0.3em"
-                        , style "width" "25%"
-                        ]
-                        [ showNode model nodeToShow ]
-                )
-                model.showNode
+            , viewSelectedNode model
             ]
         ]
 
 
-showNode : Model -> Node -> Html Msg
-showNode model node =
+viewSelectedNode : Model -> Html Msg
+viewSelectedNode model =
+    div
+        [ style "background-color" currentTheme.nodeBackground
+        , style "border-radius" "5px"
+        , style "padding" "0.5em"
+        , style "margin-left" "0.8em"
+        , style "margin-right" "0.3em"
+        , style "width" "25%"
+        ]
+        [ case model.selectedNode of
+            Model.NoneSelected ->
+                text ""
+
+            Model.Selected nodeToShow ->
+                selectedNode model nodeToShow
+        ]
+
+
+selectedNode : Model -> Node -> Html Msg
+selectedNode model node =
     case node of
         Model.TagNode n ->
             div []
