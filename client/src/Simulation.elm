@@ -1,4 +1,4 @@
-module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, tick, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
+module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, setCenter, tick, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
 
 import Dict exposing (Dict)
 import Maybe.Extra
@@ -314,6 +314,11 @@ tick sim =
                     sim.nodes
     in
     { sim | nodes = newNodes, tickCount = sim.tickCount + 1 }
+
+
+setCenter : ( Float, Float ) -> Simulation comparable -> Simulation comparable
+setCenter center s =
+    { s | center = center }
 
 
 isCompleted : Simulation comparable -> Bool

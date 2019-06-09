@@ -4,7 +4,7 @@ import Color exposing (Color)
 import ColorTheme exposing (currentTheme)
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (autofocus, class, placeholder, style, type_, value)
+import Html.Attributes exposing (autofocus, class, id, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Maybe.Extra
@@ -20,14 +20,20 @@ import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), FontWeight(..), L
 
 view : Model -> Html Msg
 view model =
+    let
+        heightInPx =
+            (model.window.height |> floor |> String.fromInt) ++ "px"
+    in
     div
         [ style "background-color" currentTheme.background
         , style "padding" "0.5em"
         , style "padding-top" "0"
+        , style "height" heightInPx
+        , id "main_div"
         ]
         [ searchBox model
         , div [ style "display" "flex", style "flex-direction" "row" ]
-            [ div [ style "flex-grow" "1", style "min-width" "75%" ] [ drawGraph model ]
+            [ div [ style "flex-grow" "1", style "min-width" "75%", style "min-height" heightInPx ] [ drawGraph model ]
             , viewSelectedNode model
             ]
         ]
@@ -42,6 +48,7 @@ viewSelectedNode model =
         , style "margin-left" "0.8em"
         , style "margin-right" "0.3em"
         , style "width" "25%"
+        , style "min-height" "100%"
         ]
         [ case model.selectedNode of
             Model.NoneSelected ->
@@ -130,7 +137,6 @@ selectedNode model node =
                                         ]
                                         [ text x ]
                                 )
-                         -- |> List.intersperse (br [] [])
                         )
                     ]
                 ]
@@ -374,8 +380,22 @@ drawGraph model =
             Simulation.nodes model.simulation
                 |> List.map toNodeElement
                 |> List.map (g [ class [ "nodes" ] ])
+
+        width_ =
+            TypedSvg.Types.percent 100
+
+        height_ =
+            TypedSvg.Types.percent 100
     in
-    div [ style "background-color" currentTheme.graph.background, style "border-radius" "5px" ]
-        [ svg [ viewBox 0 0 Model.width Model.height ]
+    div
+        [ id "graph"
+        , style "background-color" currentTheme.graph.background
+        , style "border-radius" "5px"
+        , style "height" "100%"
+        ]
+        [ svg
+            [ TypedSvg.Attributes.width width_
+            , TypedSvg.Attributes.height height_
+            ]
             (edges :: nodes)
         ]

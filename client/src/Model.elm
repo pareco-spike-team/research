@@ -1,5 +1,6 @@
-module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, SelectedNode(..), Tag, TextType(..), height, width)
+module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, SelectedNode(..), Tag, TextType(..), WindowSize)
 
+import Browser.Dom exposing (Viewport)
 import Dict exposing (Dict)
 import Http
 import Simulation
@@ -7,7 +8,9 @@ import Time
 
 
 type Msg
-    = ArticleSearchResult (Result Http.Error (List Article))
+    = ResizeWindow ( Int, Int )
+    | GotViewport Viewport
+    | ArticleSearchResult (Result Http.Error (List Article))
     | ArticleSelectedResult (Result Http.Error (List Article))
     | AllTags (Result Http.Error (List Tag))
     | TagFilterInput String
@@ -29,17 +32,12 @@ type alias Model =
     , articleFilter : String
     , drag : Maybe Drag
     , simulation : Simulation.Simulation String
+    , window : WindowSize
     }
 
 
-width : Float
-width =
-    1200
-
-
-height : Float
-height =
-    900
+type alias WindowSize =
+    { width : Float, height : Float }
 
 
 type alias Drag =

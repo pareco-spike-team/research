@@ -14,6 +14,22 @@ import Simulation exposing (Simulation)
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GotViewport vp ->
+            ( { model
+                | window = vp.scene
+                , simulation = Simulation.setCenter ( 0.35 * vp.scene.width, 0.35 * vp.scene.height ) model.simulation
+              }
+            , Cmd.none
+            )
+
+        ResizeWindow ( x, y ) ->
+            ( { model
+                | window = { width = toFloat x, height = toFloat y }
+                , simulation = Simulation.setCenter ( 0.35 * toFloat x, 0.35 * toFloat y ) model.simulation
+              }
+            , Cmd.none
+            )
+
         TagFilterInput s ->
             ( { model | tagFilter = s, articleFilter = s }, Cmd.none )
 
@@ -295,7 +311,6 @@ articleSearchResult model articlesFound =
                 |> List.head
                 |> Maybe.Extra.unwrap ""
                     (\x -> x.id)
-                |> Debug.log "default"
     in
     case model.selectedNode of
         Model.Selected _ ->
