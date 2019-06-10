@@ -325,10 +325,10 @@ searchResultDecoder model =
     let
         f : Article -> Decoder Article
         f a =
-            maybe (field "tag" tagDecoder)
+            field "tags" tagListDecoder
                 |> Decode.map
-                    (\t ->
-                        { a | tags = Maybe.Extra.unwrap [] (\x -> [ x ]) t }
+                    (\tags ->
+                        { a | tags = tags }
                     )
     in
     Decode.list

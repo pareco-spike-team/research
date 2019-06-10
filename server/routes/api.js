@@ -15,60 +15,82 @@ async function searchByTag(filter) {
 	return result;
 }
 
-async function searchArticles(tags, filter) {
-	const driver = getDriver();
-	const s = driver.session();
-	const buildMatch = xs => {
-		return '(?muis)' + (
-			xs.
-				split(',').
-				map(x => x.trim()).
-				map(x =>
-					(x.length >= 4) ?
-						`.*${(x.toLowerCase())}.*` :
-						`${(x.toLowerCase())}`).
-				join('|'));
-	};
-	const tagQuery =
-		tags ?
-			runQuery(s)
-				("MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE tag.tag =~ {tag} RETURN article, tag")
-				({ tag: buildMatch(tags) }) :
-			Promise.resolve([]);
-	const articleQuery =
-		filter ?
-			runQuery(s)
-				("MATCH (article:Article) WHERE article.title =~ {article} OR article.text =~ {article} RETURN article")
-				({ article: buildMatch(filter) }) :
-			Promise.resolve([]);
-
-	const [tagsResult, articleResult] = await Promise.all([tagQuery, articleQuery]);
-
-	const articleMap =
-		new Map(tagsResult.map(x => [x.article.id, x]));
-
+function mapToReturn(mapAcc, xs) {
 	const result =
-		articleResult.reduce((res, x) => {
-			if (!articleMap.has(x.article.id)) {
+		xs.reduce((res, x) => {
+			const match = res.get(x.article.id);
+			if (match == null) {
+				x.tags = [x.tag];
+				delete x.tag;
 				res.set(x.article.id, x);
+			} else {
+				match.tags = [...match.tags, x.tag];
 			}
 			return res;
-		}, articleMap);
-	driver.close();
-	return [...result.values()];
+		}, mapAcc);
+
+	return result;
+}
+
+async function searchArticles(tags, filter) {
+	const driver = getDriver();
+	try {
+		const s = driver.session();
+		const buildMatch = xs => {
+			return '(?muis)' + (
+				xs.
+					split(',').
+					map(x => x.trim()).
+					map(x =>
+						(x.length >= 4) ?
+							`.*${(x.toLowerCase())}.*` :
+							`${(x.toLowerCase())}`).
+					join('|'));
+		};
+		const tagQuery =
+			tags ?
+				runQuery(s)
+					("MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE tag.tag =~ {tag} RETURN article, tag")
+					({ tag: buildMatch(tags) }) :
+				Promise.resolve([]);
+		const articleQuery =
+			filter ?
+				runQuery(s)
+					("MATCH (article:Article) WHERE article.title =~ {article} OR article.text =~ {article} RETURN article")
+					({ article: buildMatch(filter) }) :
+				Promise.resolve([]);
+
+		const [tagsResult, articleResult] = await Promise.all([tagQuery, articleQuery]);
+
+		const articleMap =
+			new Map(articleResult.map(x => {
+				x.tags = [];
+				delete x.tag;
+				return [x.article.id, x];
+			}));
+
+		const result = mapToReturn(articleMap, tagsResult);
+		return [...result.values()];
+	} finally {
+		driver.close();
+	}
 }
 
 async function getTagsForArticle(articleId, includeArticles) {
 	const driver = getDriver();
-	const s = driver.session();
-	const query =
-		`MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} WITH tag
+	try {
+		const s = driver.session();
+		const query =
+			`MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} WITH tag
 		MATCH (tag)<-[:Tag]-(article:Article) WHERE article.id = {articleId} OR article.id IN {includeArticles} RETURN tag, article`;
-	const toInclude = includeArticles ? includeArticles.split(',').map(x => x.trim()) : [];
+		const toInclude = includeArticles ? includeArticles.split(',').map(x => x.trim()) : [];
 
-	const result = await runQuery(s)(query)({ articleId: articleId, includeArticles: toInclude });
-	driver.close();
-	return result;
+		const result = await runQuery(s)(query)({ articleId: articleId, includeArticles: toInclude });
+		const mapResult = mapToReturn(new Map(), result);
+		return [...mapResult.values()];
+	} finally {
+		driver.close();
+	}
 }
 
 async function getArticlesWithTag(tagId) {
