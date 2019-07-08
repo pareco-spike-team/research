@@ -4,7 +4,7 @@ import Color exposing (Color)
 import ColorTheme exposing (currentTheme)
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (autofocus, class, id, placeholder, style, type_, value)
+import Html.Attributes exposing (autofocus, class, href, id, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Maybe.Extra
@@ -23,6 +23,17 @@ view model =
     let
         heightInPx =
             (model.window.height |> floor |> String.fromInt) ++ "px"
+
+        mainIcon =
+            getViewModeIcon model.viewMode
+
+        mainWindow =
+            case model.viewMode of
+                Model.Nodes ->
+                    drawGraph model
+
+                Model.TimeLine ->
+                    drawTimeLine model
     in
     div
         [ style "background-color" currentTheme.background
@@ -33,10 +44,34 @@ view model =
         ]
         [ searchBox model
         , div [ style "display" "flex", style "flex-direction" "row" ]
-            [ div [ style "flex-grow" "1", style "min-width" "75%", style "min-height" heightInPx ] [ drawGraph model ]
+            [ div [ style "flex-grow" "1", style "min-width" "75%", style "min-height" heightInPx, style "position" "relative" ]
+                [ mainWindow
+                , div [ style "position" "absolute", style "top" "0", style "left" "0" ] [ mainIcon ]
+                ]
             , viewSelectedNode model
             ]
         ]
+
+
+getViewModeIcon : Model.ViewMode -> Html Msg
+getViewModeIcon viewMode =
+    let
+        create icon msg =
+            i
+                [ class [ icon ]
+                , style "background-color" currentTheme.graph.background
+                , style "color" currentTheme.text.title
+                , style "padding" "5px"
+                , onClick msg
+                ]
+                []
+    in
+    case viewMode of
+        Model.Nodes ->
+            create "fas fa-calendar-alt" SwitchToTimeLineView
+
+        Model.TimeLine ->
+            create "fas fa-project-diagram" SwitchToNodesView
 
 
 viewSelectedNode : Model -> Html Msg
@@ -57,6 +92,19 @@ viewSelectedNode model =
             Model.Selected nodeToShow ->
                 selectedNode model nodeToShow
         ]
+
+
+renderTag htmlTag tagText =
+    htmlTag
+        [ style "list-style-type" "none"
+        , style "color" currentTheme.text.text
+        , style "background-color" currentTheme.text.tag
+        , style "border-radius" "3px"
+        , style "margin" "0.1em"
+        , style "padding" "0.2em"
+        , style "display" "table"
+        ]
+        [ text tagText ]
 
 
 selectedNode : Model -> Node -> Html Msg
@@ -124,19 +172,7 @@ selectedNode model node =
                         , style "padding-inline-start" "0.5em"
                         ]
                         (tags
-                            |> List.map
-                                (\x ->
-                                    li
-                                        [ style "list-style-type" "none"
-                                        , style "color" currentTheme.text.text
-                                        , style "background-color" currentTheme.text.tag
-                                        , style "border-radius" "3px"
-                                        , style "margin" "0.1em"
-                                        , style "padding" "0.2em"
-                                        , style "display" "table"
-                                        ]
-                                        [ text x ]
-                                )
+                            |> List.map (renderTag li)
                         )
                     ]
                 ]
@@ -398,4 +434,86 @@ drawGraph model =
             , TypedSvg.Attributes.height height_
             ]
             (edges :: nodes)
+        ]
+
+
+drawTimeLine : Model -> Html Msg
+drawTimeLine model =
+    let
+        articlesByDate =
+            model.nodes
+                |> Dict.values
+                |> List.map
+                    (\x ->
+                        case x of
+                            Model.ArticleNode a ->
+                                Just a
+
+                            Model.TagNode _ ->
+                                Nothing
+                    )
+                |> Maybe.Extra.values
+                |> List.foldl
+                    (\a byDate ->
+                        Dict.get a.date byDate
+                            |> Maybe.Extra.unwrap [] identity
+                            |> (\xs -> a :: xs)
+                            |> (\xs -> Dict.insert a.date xs byDate)
+                    )
+                    Dict.empty
+
+        sortedDates : List String
+        sortedDates =
+            Dict.keys articlesByDate
+                |> List.sort
+                |> List.reverse
+
+        listTags : List Model.Tag -> List (Html Msg)
+        listTags tags =
+            tags
+                |> List.map (\x -> renderTag div x.tag)
+
+        listDays articles =
+            articles
+                |> List.map
+                    (\x ->
+                        li []
+                            [ div
+                                [ style "display" "flex", style "flex-direction" "row" ]
+                                (a
+                                    [ href "#"
+                                    , onClick <| ShowNode x.id
+                                    , style "color" currentTheme.text.text
+                                    , style "text-decoration" "none"
+                                    , style "margin" "0.1em"
+                                    , style "padding" "0.2em"
+                                    ]
+                                    [ text <| x.title ]
+                                    :: listTags x.tags
+                                )
+                            ]
+                    )
+    in
+    div
+        [ id "timeline"
+        , style "background-color" currentTheme.graph.background
+        , style "border-radius" "5px"
+        , style "height" "100%"
+        , style "display" "flex"
+        ]
+        [ ul [ style "list-style-type" "none" ]
+            (sortedDates
+                |> List.map
+                    (\day ->
+                        li []
+                            [ span [ style "color" currentTheme.text.title ] [ text day ]
+                            , ul [ style "list-style-type" "none" ]
+                                (Dict.get
+                                    day
+                                    articlesByDate
+                                    |> Maybe.Extra.unwrap [] listDays
+                                )
+                            ]
+                    )
+            )
         ]

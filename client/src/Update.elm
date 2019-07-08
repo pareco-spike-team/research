@@ -123,9 +123,14 @@ update msg model =
             updateShowNode model id
 
         Tick t ->
-            ( { model | simulation = Simulation.tick model.simulation }
-            , Cmd.none
-            )
+            case model.viewMode of
+                Model.TimeLine ->
+                    ( model, Cmd.none )
+
+                Model.Nodes ->
+                    ( { model | simulation = Simulation.tick model.simulation }
+                    , Cmd.none
+                    )
 
         DragStart id xy ->
             let
@@ -171,6 +176,12 @@ update msg model =
 
                 Nothing ->
                     ( { model | drag = Nothing }, Cmd.none )
+
+        SwitchToTimeLineView ->
+            ( { model | viewMode = Model.TimeLine }, Cmd.none )
+
+        SwitchToNodesView ->
+            ( { model | viewMode = Model.Nodes }, Cmd.none )
 
 
 updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )

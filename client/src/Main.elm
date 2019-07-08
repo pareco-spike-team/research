@@ -33,6 +33,7 @@ init _ =
             , allTags = []
             , tagFilter = ""
             , articleFilter = ""
+            , viewMode = Model.Nodes
             , drag = Nothing
             , simulation =
                 Simulation.init ( 400.0, 400.0 )
@@ -53,15 +54,18 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     let
         events =
-            case model.drag of
-                Nothing ->
+            case ( model.drag, model.viewMode ) of
+                ( _, Model.TimeLine ) ->
+                    []
+
+                ( Nothing, Model.Nodes ) ->
                     if Simulation.isCompleted model.simulation then
                         []
 
                     else
                         [ Browser.Events.onAnimationFrame Tick ]
 
-                Just _ ->
+                ( Just _, Model.Nodes ) ->
                     [ Browser.Events.onMouseMove (Decode.map (.clientPos >> DragAt) Mouse.eventDecoder)
                     , Browser.Events.onMouseUp (Decode.map (.clientPos >> DragEnd) Mouse.eventDecoder)
                     , Browser.Events.onAnimationFrame Tick

@@ -1,4 +1,4 @@
-module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, SelectedNode(..), Tag, TextType(..), WindowSize)
+module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, SelectedNode(..), Tag, TextType(..), ViewMode(..), WindowSize)
 
 import Browser.Dom exposing (Viewport)
 import Dict exposing (Dict)
@@ -22,6 +22,8 @@ type Msg
     | DragAt ( Float, Float )
     | DragEnd ( Float, Float )
     | Tick Time.Posix
+    | SwitchToTimeLineView
+    | SwitchToNodesView
 
 
 type alias Model =
@@ -30,10 +32,16 @@ type alias Model =
     , allTags : List Tag
     , tagFilter : String
     , articleFilter : String
+    , viewMode : ViewMode
     , drag : Maybe Drag
     , simulation : Simulation.Simulation String
     , window : WindowSize
     }
+
+
+type ViewMode
+    = Nodes
+    | TimeLine
 
 
 type alias WindowSize =
