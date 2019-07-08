@@ -6,7 +6,7 @@ fi
 docker-compose up -d
 # wait for neo to start up
 echo =Waiting for neo to startup =
-sleep 10
+sleep 12
 echo = Importing data =
 cd dataImport
 node ./import.js $@
