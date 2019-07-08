@@ -12,7 +12,8 @@
     "precopy": "yarn run install_packages && if [ -d './dist' ]; then rm -Rf ./dist; fi && mkdir -p dist/fontawesome",
     "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free/. ./dist/fontawesome/",
     "prebuild": "yarn run copy && cp ./client/src/index.html ./dist/index.html",
-    "build": "./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js --debug"
+    "build": "./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js --debug",
+    "build_release": "yarn prebuild && ./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "~5.8.1",
