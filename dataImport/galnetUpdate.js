@@ -4,6 +4,7 @@ const
 	{ getDriver, runQuery } = require('../util/neoHelper'),
 	request = require('request-promise-native'),
 	shortId = require('shortid'),
+	Case = require('case'),
 	moment = require('moment');
 
 const uri = "https://elitedangerous-website-backend-production.elitedangerous.com/api/galnet?_format=json";
@@ -60,18 +61,28 @@ async function saveArticles(articles) {
 
 async function readFeed() {
 	const tags = await getAllTags();
+	const allTagsCapital = tags.map(x => Case.capital(x));
+
 	const tagRegexes = tags.map(x => {
 		return { tag: x, regex: new RegExp(`[^a-z]${x.toLowerCase()}[^a-z]`, "muisg") };
 	});
+	const hasSmallCharacters = /[a-z]/;
 	const query = { uri: uri };
 	const items = JSON.parse(await request(query));
 	const articles =
 		items.
 			filter(x => x.slug !== "adder-ship-kit").
 			map(x => {
+				const title = (() => {
+					if (!hasSmallCharacters.test(x.title)) {
+						const t = Case.sentence(x.title, allTagsCapital, []);
+						return t.trim();
+					}
+					return x.title.trim();
+				})();
 				return {
 					id: `${x.nid}_${shortId.generate()}`,
-					title: x.title.trim(),
+					title: title,
 					text: x.body.replace(/<p>/, '').replace(/<br \/>/g, '\n').replace(/<\/p>/, '').trim(),
 					date: moment(x.date).format("YYYY-MM-DD"),
 					tags: []

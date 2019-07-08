@@ -21,9 +21,9 @@ async function tagArticles() {
 	const query = `
 			MATCH (a:Article)
 			WHERE (a.text =~ {tagMatch} OR a.title =~ {tagMatch})
-				AND a.title <> 'Week in Review'
-				AND (NOT a.title STARTS WITH 'Community Goal:')
-				AND (NOT a.title STARTS WITH 'Freelance Report:')
+				AND lower(a.title) <> 'week in review'
+				AND (NOT lower(a.title) STARTS WITH 'community goal:')
+				AND (NOT lower(a.title) STARTS WITH 'freelance report:')
 			MATCH (t:Tag) WHERE t.tag = {tag}
 			MERGE (a)-[:Tag]->(t)
 			RETURN count(a) AS articlesUpdated`;

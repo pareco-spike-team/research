@@ -4,6 +4,7 @@ const
 	neo = require('../util/neoHelper.js'),
 	markdownFileToParse = `${__dirname}/../data/Galnet_Revamp_no_HTML.txt`,
 	shortId = require('shortid'),
+	Case = require('case'),
 	markdownParse = require('./markdownParser.js');
 
 
@@ -131,6 +132,22 @@ function cleanTags(articles) {
 	});
 }
 
+function fixTitles(articles) {
+	const r = /[a-z]/;
+	const allTags =
+		[...(articles.reduce((acc, a) => {
+			a.tags.forEach(x => acc.add(Case.capital(x.tag)));
+			return acc;
+		}, new Set())).values()];
+
+	articles.forEach(a => {
+		if (!r.test(a.title)) {
+			const t = Case.sentence(a.title, allTags, []);
+			a.title = t;
+		}
+	});
+}
+
 async function addIndexes() {
 	const q1 = 'CALL db.index.fulltext.createNodeIndex("TextTitleIndex", ["Article"],["text", "title"])';
 	const q2 = 'CALL db.index.fulltext.createNodeIndex("TagIndex", ["Tag"],["tag"])';
@@ -144,6 +161,7 @@ async function addIndexes() {
 const p = new Promise((resolve, reject) => {
 	const articles = markdownParse(markdownFileToParse);
 	cleanTags(articles);
+	fixTitles(articles);
 
 	return saveTags(articles).
 		then(() => saveArticles(articles)).
