@@ -58,7 +58,6 @@ async function saveArticles(articles) {
 	driver.close();
 }
 
-
 async function readFeed() {
 	const tags = await getAllTags();
 	const allTagsCapital = tags.map(x => Case.capital(x));
@@ -84,7 +83,7 @@ async function readFeed() {
 					id: `${x.nid}_${shortId.generate()}`,
 					title: title,
 					text: x.body.replace(/<p>/, '').replace(/<br \/>/g, '\n').replace(/<\/p>/, '').trim(),
-					date: moment(x.date).format("YYYY-MM-DD"),
+					date: moment(x.date, "DD MMM YYYY").format("YYYY-MM-DD"),
 					tags: []
 				};
 			}).
