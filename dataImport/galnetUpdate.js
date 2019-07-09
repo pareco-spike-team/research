@@ -20,6 +20,17 @@ async function getAllTags() {
 	return result;
 }
 
+async function getNewestArticleDate() {
+	const driver = getDriver();
+	let session = driver.session();
+	const query = runQuery(session);
+	const findLargestArticleDate = `MATCH (a:Article) RETURN MAX(a.date) as date`;
+	const result = (await query(findLargestArticleDate)({}));
+	driver.close();
+
+	return result[0].date;
+}
+
 async function saveArticles(articles) {
 	console.log(`Saving ${articles.length} articles.`);
 	const driver = getDriver();
@@ -59,7 +70,13 @@ async function saveArticles(articles) {
 }
 
 async function readFeed() {
-	const tags = await getAllTags();
+	const [newestArticleDateStr, tags] = await Promise.all([
+		getNewestArticleDate(), getAllTags()
+	]);
+	const newestArticleDate =
+		moment(newestArticleDateStr, "YYYY-MM-DD").
+			subtract(2, "days").
+			format("YYYY-MM-DD");
 	const allTagsCapital = tags.map(x => Case.capital(x));
 
 	const tagRegexes = tags.map(x => {
@@ -87,6 +104,7 @@ async function readFeed() {
 					tags: []
 				};
 			}).
+			filter(x => x.date >= newestArticleDate).
 			map(x => {
 				x.tags = tagRegexes.filter(t => t.regex.test(x.text)).map(t => t.tag);
 				return x;
