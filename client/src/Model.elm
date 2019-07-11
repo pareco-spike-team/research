@@ -1,4 +1,4 @@
-module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), NodeData, Nodes, ParsedText, SearchFilter, Tag, TextType(..), ViewState(..), WindowSize, getNodeId)
+module Model exposing (Article, Drag, Id, Index, MenuMsg(..), Model, Msg(..), Node(..), NodeData, Nodes, ParsedText, SearchFilter, Tag, TextType(..), TimeLineData, ViewState(..), WindowSize, getNodeId)
 
 import Browser.Dom exposing (Viewport)
 import Dict exposing (Dict)
@@ -18,12 +18,22 @@ type Msg
     | ClearAll
     | GetRelated Id
     | ShowNode Id
+    | ToggleShowMenu
     | DragStart Id ( Float, Float )
     | DragAt ( Float, Float )
     | DragEnd ( Float, Float )
     | Tick Time.Posix
     | SwitchToTimeLineView
     | SwitchToNodesView
+    | MenuMsg MenuMsg
+
+
+type MenuMsg
+    = Unlock Id
+    | Remove Id
+    | RemoveConnected Id
+    | RemoveNotConnected Id
+    | ConnectTo Id
 
 
 type alias Model =
@@ -38,7 +48,7 @@ type alias Model =
 type ViewState
     = Empty
     | Nodes NodeData
-    | TimeLine NodeData
+    | TimeLine TimeLineData
     | DragNode { drag : Drag, nodeData : NodeData }
 
 
@@ -47,6 +57,10 @@ type alias SearchFilter =
 
 
 type alias NodeData =
+    { nodes : Nodes, selectedNode : Node, showMenu : Bool }
+
+
+type alias TimeLineData =
     { nodes : Nodes, selectedNode : Node }
 
 

@@ -54,7 +54,7 @@ function setupRoutes(app, config) {
 		res.send('pong');
 	});
 	app.get('/*', function(req, res, next) {
-		const ignore = /^\/(lib)|(css)|(js)|(img)|(api)|(fonts).*$/;
+		const ignore = /^\/(lib)|(css)|(js)|(img)|(api)|(fonts)|(svg).*$/;
 		if (ignore.test(req.originalUrl)) {
 			next();
 		} else {

@@ -1,0 +1,26 @@
+
+svg text {
+	font-family: FontAwesome;
+}
+
+.icon {
+	width: 1em;
+	height: 1em;
+	fill: white;
+	cursor: pointer;
+}
+
+.article-menu-back {
+	fill: #3A3C40;
+}
+
+.article-menu {
+	fill: #424549;
+	fill-opacity: 0.5;
+}
+
+.article-menu:hover {
+	cursor: pointer;
+	fill: #A9ABAD;
+	fill-opacity: 0.15;
+}

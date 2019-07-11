@@ -4,14 +4,16 @@ import Color exposing (Color)
 import ColorTheme exposing (currentTheme)
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (autofocus, class, href, id, placeholder, style, type_, value)
+import Html.Attributes exposing (attribute, autofocus, class, href, id, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Maybe.Extra
 import Model exposing (Article, Model, Msg(..), Node, TextType)
+import Path.LowLevel as LL
+import Path.LowLevel.Parser as Parser
 import Simulation
-import TypedSvg exposing (circle, g, line, rect, svg, text_, title)
-import TypedSvg.Attributes exposing (class, color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor, viewBox)
+import TypedSvg as Svg exposing (circle, g, line, rect, svg, text_, title)
+import TypedSvg.Attributes as SvgAttr exposing (class, color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor, viewBox)
 import TypedSvg.Attributes.InEm as InEm
 import TypedSvg.Attributes.InPx as InPx exposing (cx, cy, r, strokeWidth, x1, x2, y1, y2)
 import TypedSvg.Core exposing (Attribute, Svg, text)
@@ -293,11 +295,118 @@ onMouseDown node =
     Mouse.onDown (.clientPos >> DragStart node.id)
 
 
-nodeElement : Model.Nodes -> Bool -> Simulation.Node Model.Id -> List (Html Msg)
-nodeElement nodes selected simulationNode =
+svgFontSize =
+    16
+
+
+drawArc circleX circleY circleRadiusInEm angleWidth ( startAngle, icon, onClickMsg ) =
     let
+        radius =
+            1.1 * circleRadiusInEm
+
+        endAngle =
+            startAngle + angleWidth
+
+        sliceSize =
+            1.9
+
+        ( textX, textY ) =
+            ( circleX - svgFontSize / 2 + svgFontSize * (radius + sliceSize / 2) * cos (degrees (startAngle + angleWidth / 2))
+            , circleY - svgFontSize / 2 + svgFontSize * (radius + sliceSize / 2) * sin (degrees (startAngle + angleWidth / 2))
+            )
+
+        ( x11, y11 ) =
+            ( circleX + svgFontSize * radius * cos (degrees startAngle)
+            , circleY + svgFontSize * radius * sin (degrees startAngle)
+            )
+
+        ( x12, y12 ) =
+            ( circleX + svgFontSize * (radius + sliceSize) * cos (degrees startAngle)
+            , circleY + svgFontSize * (radius + sliceSize) * sin (degrees startAngle)
+            )
+
+        ( x21, y21 ) =
+            ( circleX + svgFontSize * radius * cos (degrees endAngle)
+            , circleY + svgFontSize * radius * sin (degrees endAngle)
+            )
+
+        ( x22, y22 ) =
+            ( circleX + svgFontSize * (radius + sliceSize) * cos (degrees endAngle)
+            , circleY + svgFontSize * (radius + sliceSize) * sin (degrees endAngle)
+            )
+
+        ( xb1, yb1 ) =
+            ( circleX + 1.16 * svgFontSize * (radius + sliceSize) * cos (degrees (startAngle + angleWidth / 2))
+            , circleY + 1.16 * svgFontSize * (radius + sliceSize) * sin (degrees (startAngle + angleWidth / 2))
+            )
+
+        ( xb2, yb2 ) =
+            ( circleX + 1.16 * svgFontSize * radius * cos (degrees (startAngle + angleWidth / 2))
+            , circleY + 1.16 * svgFontSize * radius * sin (degrees (startAngle + angleWidth / 2))
+            )
+
+        myPath : List LL.SubPath
+        myPath =
+            [ { moveto = LL.MoveTo LL.Absolute ( x11, y11 )
+              , drawtos =
+                    [ LL.LineTo LL.Absolute [ ( x12, y12 ) ]
+                    , LL.QuadraticBezierCurveTo LL.Absolute [ ( ( xb1, yb1 ), ( x22, y22 ) ) ]
+                    , LL.LineTo LL.Absolute [ ( x21, y21 ) ]
+                    , LL.QuadraticBezierCurveTo LL.Absolute [ ( ( xb2, yb2 ), ( x11, y11 ) ) ]
+                    ]
+              }
+            ]
+
+        dsString =
+            LL.toString myPath
+    in
+    [ Svg.path
+        [ SvgAttr.d dsString
+        , class [ "article-menu-back" ]
+        , onClick onClickMsg
+        ]
+        []
+    , svg
+        [ SvgAttr.width (TypedSvg.Types.em 1)
+        , SvgAttr.height (TypedSvg.Types.em 1)
+        , InPx.x textX
+        , InPx.y textY
+        ]
+        [ Svg.use
+            [ SvgAttr.xlinkHref <| "./fontawesome/sprites/solid.svg#" ++ icon
+            , class [ "icon" ]
+            , onClick onClickMsg
+            ]
+            []
+        ]
+    , Svg.path
+        [ SvgAttr.d dsString
+        , class [ "article-menu" ]
+        , onClick onClickMsg
+        ]
+        []
+    ]
+
+
+nodeElement : Model.NodeData -> Simulation.Node Model.Id -> List (Html Msg)
+nodeElement nodeData simulationNode =
+    let
+        circleRadius =
+            2.3
+
+        selected =
+            case ( nodeData.selectedNode, simulationNode ) of
+                ( Model.ArticleNode x, y ) ->
+                    x.id == y.id
+
+                ( Model.TagNode x, y ) ->
+                    x.id == y.id
+
+        showMenu =
+            selected && nodeData.showMenu
+
         fullTitle =
-            Dict.get simulationNode.id nodes
+            Dict.get simulationNode.id nodeData.nodes
                 |> Maybe.Extra.unwrap simulationNode.id
                     (\x ->
                         case x of
@@ -338,7 +447,7 @@ nodeElement nodes selected simulationNode =
                 4.0
 
         { fillColor, strokeColor, textColor } =
-            Dict.get simulationNode.id nodes
+            Dict.get simulationNode.id nodeData.nodes
                 |> Maybe.Extra.unwrap currentTheme.graph.node.unknown
                     (\x ->
                         case ( selected, x ) of
@@ -354,9 +463,30 @@ nodeElement nodes selected simulationNode =
                             ( False, Model.ArticleNode _ ) ->
                                 currentTheme.graph.node.article
                     )
+
+        menus =
+            -- lock/unlock, hide this, hide connected, hide not connected, hide allbut this, connectTo
+            if showMenu then
+                [ ( 270, "lock-open", Model.MenuMsg <| Model.Unlock simulationNode.id )
+                , ( 342, "trash", Model.MenuMsg <| Model.Remove simulationNode.id )
+                , ( 54, "code-branch", Model.MenuMsg <| Model.RemoveConnected simulationNode.id )
+                , ( 126, "project-diagram", Model.MenuMsg <| Model.RemoveNotConnected simulationNode.id )
+                , ( 198, "link", Model.MenuMsg <| Model.ConnectTo simulationNode.id )
+                ]
+                    |> List.concatMap (drawArc simulationNode.x simulationNode.y circleRadius 70)
+
+            else
+                []
+
+        clickEvent =
+            if selected then
+                ToggleShowMenu
+
+            else
+                ShowNode simulationNode.id
     in
     [ circle
-        [ InEm.r 2.3
+        [ InEm.r circleRadius
         , fill (Fill fillColor)
         , stroke strokeColor
         , strokeWidth strokeWidth_
@@ -364,7 +494,7 @@ nodeElement nodes selected simulationNode =
         , cy simulationNode.y
         , style "cursor" "pointer"
         , onMouseDown simulationNode
-        , onClick <| ShowNode simulationNode.id
+        , onClick clickEvent
         , onDoubleClick <| GetRelated simulationNode.id
         ]
         [ title [] [ text fullTitle ]
@@ -382,11 +512,12 @@ nodeElement nodes selected simulationNode =
         , stroke textColor
         , style "cursor" "pointer"
         , onMouseDown simulationNode
-        , onClick <| ShowNode simulationNode.id
+        , onClick clickEvent
         , onDoubleClick <| GetRelated simulationNode.id
         ]
         [ text trimmedTitle ]
     ]
+        ++ menus
 
 
 drawGraph : Simulation.Simulation String -> Model.NodeData -> Svg Msg
@@ -401,18 +532,9 @@ drawGraph simulation nodeData =
                 |> List.map linkElement
                 |> g [ class [ "links" ] ]
 
-        isSelected : Simulation.Node Model.Id -> Bool
-        isSelected node =
-            case ( nodeData.selectedNode, node ) of
-                ( Model.ArticleNode x, y ) ->
-                    x.id == y.id
-
-                ( Model.TagNode x, y ) ->
-                    x.id == y.id
-
         toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
         toNodeElement x =
-            nodeElement nodeData.nodes (isSelected x) x
+            nodeElement nodeData x
 
         nodes : List (Svg Msg)
         nodes =
@@ -431,20 +553,21 @@ drawGraph simulation nodeData =
         , style "background-color" currentTheme.graph.background
         , style "border-radius" "5px"
         , style "height" "100%"
+        , style "font-size" (String.fromInt svgFontSize ++ "px")
         ]
         [ svg
-            [ TypedSvg.Attributes.width width_
-            , TypedSvg.Attributes.height height_
+            [ SvgAttr.width width_
+            , SvgAttr.height height_
             ]
             (edges :: nodes)
         ]
 
 
-drawTimeLine : Model.NodeData -> Html Msg
-drawTimeLine nodeData =
+drawTimeLine : Model.TimeLineData -> Html Msg
+drawTimeLine { nodes } =
     let
         articlesByDate =
-            nodeData.nodes
+            nodes
                 |> Dict.values
                 |> List.map
                     (\x ->

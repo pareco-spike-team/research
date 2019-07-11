@@ -123,13 +123,27 @@ update msg model =
                     getRelated nodeData
 
                 Model.Nodes nodeData ->
-                    getRelated nodeData
+                    getRelated { nodeData | showMenu = False }
 
                 Model.DragNode { nodeData } ->
                     getRelated nodeData
 
         ShowNode id ->
             updateShowNode model id
+
+        ToggleShowMenu ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine nodeData ->
+                    ( model, Cmd.none )
+
+                Model.Nodes nodeData ->
+                    ( { model | viewState = Model.Nodes { nodeData | showMenu = not nodeData.showMenu } }, Cmd.none )
+
+                Model.DragNode { nodeData } ->
+                    ( model, Cmd.none )
 
         Tick t ->
             case model.viewState of
@@ -158,8 +172,8 @@ update msg model =
                 Model.Empty ->
                     ( model, Cmd.none )
 
-                Model.TimeLine x ->
-                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x } }, Cmd.none )
+                Model.TimeLine { nodes, selectedNode } ->
+                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = { nodes = nodes, selectedNode = selectedNode, showMenu = False } } }, Cmd.none )
 
                 Model.Nodes x ->
                     ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x } }, Cmd.none )
@@ -225,25 +239,47 @@ update msg model =
                 Model.TimeLine x ->
                     ( model, Cmd.none )
 
-                Model.Nodes x ->
-                    ( { model | viewState = Model.TimeLine x }, Cmd.none )
+                Model.Nodes { nodes, selectedNode } ->
+                    ( { model | viewState = Model.TimeLine { nodes = nodes, selectedNode = selectedNode } }, Cmd.none )
 
-                Model.DragNode x ->
-                    ( { model | viewState = Model.TimeLine x.nodeData }, Cmd.none )
+                Model.DragNode { drag, nodeData } ->
+                    ( { model | viewState = Model.TimeLine { nodes = nodeData.nodes, selectedNode = nodeData.selectedNode } }, Cmd.none )
 
         SwitchToNodesView ->
             case model.viewState of
                 Model.Empty ->
                     ( model, Cmd.none )
 
-                Model.TimeLine x ->
-                    ( { model | viewState = Model.Nodes x }, Cmd.none )
+                Model.TimeLine { nodes, selectedNode } ->
+                    ( { model | viewState = Model.Nodes { nodes = nodes, selectedNode = selectedNode, showMenu = False } }, Cmd.none )
 
                 Model.Nodes x ->
                     ( model, Cmd.none )
 
                 Model.DragNode x ->
                     ( { model | viewState = Model.Nodes x.nodeData }, Cmd.none )
+
+        MenuMsg menuMsg ->
+            updateMenuMsg model menuMsg
+
+
+updateMenuMsg : Model -> Model.MenuMsg -> ( Model, Cmd Msg )
+updateMenuMsg model msg =
+    case msg of
+        Model.Unlock id ->
+            ( model, Cmd.none )
+
+        Model.Remove id ->
+            ( model, Cmd.none )
+
+        Model.RemoveConnected id ->
+            ( model, Cmd.none )
+
+        Model.RemoveNotConnected id ->
+            ( model, Cmd.none )
+
+        Model.ConnectTo id ->
+            ( model, Cmd.none )
 
 
 updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )
@@ -262,7 +298,7 @@ updateShowNode model id =
                 TagNode x ->
                     Cmd.none
 
-        doUpdate : Model.NodeData -> (Model.NodeData -> Model.ViewState) -> ( Model, Cmd Msg )
+        doUpdate : { a | nodes : Model.Nodes, selectedNode : Model.Node } -> ({ a | nodes : Model.Nodes, selectedNode : Model.Node } -> Model.ViewState) -> ( Model, Cmd Msg )
         doUpdate nodeData f =
             nodeData.nodes
                 |> getNode
@@ -280,7 +316,7 @@ updateShowNode model id =
             doUpdate x Model.TimeLine
 
         Model.Nodes x ->
-            doUpdate x Model.Nodes
+            doUpdate { x | showMenu = False } Model.Nodes
 
         Model.DragNode { drag, nodeData } ->
             doUpdate nodeData (\x -> Model.DragNode { drag = drag, nodeData = x })
@@ -407,7 +443,7 @@ articleSearchResult model articlesFound =
     case model.viewState of
         Model.Empty ->
             updateShowNode
-                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = TagNode showDefault } }
+                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = TagNode showDefault, showMenu = False } }
                 showDefault.id
 
         Model.TimeLine nodeData ->
@@ -417,7 +453,7 @@ articleSearchResult model articlesFound =
 
         Model.Nodes nodeData ->
             updateShowNode
-                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = nodeData.selectedNode } }
+                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = nodeData.selectedNode, showMenu = False } }
                 (Model.getNodeId nodeData.selectedNode)
 
         Model.DragNode { drag, nodeData } ->
