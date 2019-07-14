@@ -25,15 +25,21 @@ view model =
             (model.window.height |> floor |> String.fromInt) ++ "px"
 
         mainIcon =
-            getViewModeIcon model.viewMode
+            getViewModeIcon model.viewState
 
-        mainWindow =
-            case model.viewMode of
-                Model.Nodes ->
-                    drawGraph model
+        ( selectedNodeView, mainWindow ) =
+            case model.viewState of
+                Model.Empty ->
+                    ( text "", text "" )
 
-                Model.TimeLine ->
-                    drawTimeLine model
+                Model.TimeLine nodeData ->
+                    ( viewSelectedNode nodeData.selectedNode, drawTimeLine nodeData )
+
+                Model.Nodes nodeData ->
+                    ( viewSelectedNode nodeData.selectedNode, drawGraph model.simulation nodeData )
+
+                Model.DragNode { drag, nodeData } ->
+                    ( viewSelectedNode nodeData.selectedNode, drawGraph model.simulation nodeData )
     in
     div
         [ style "background-color" currentTheme.background
@@ -48,12 +54,12 @@ view model =
                 [ mainWindow
                 , div [ style "position" "absolute", style "top" "0", style "left" "0" ] [ mainIcon ]
                 ]
-            , viewSelectedNode model
+            , selectedNodeView
             ]
         ]
 
 
-getViewModeIcon : Model.ViewMode -> Html Msg
+getViewModeIcon : Model.ViewState -> Html Msg
 getViewModeIcon viewMode =
     let
         create icon msg =
@@ -67,15 +73,21 @@ getViewModeIcon viewMode =
                 []
     in
     case viewMode of
-        Model.Nodes ->
+        Model.Empty ->
+            text ""
+
+        Model.DragNode _ ->
             create "fas fa-calendar-alt" SwitchToTimeLineView
 
-        Model.TimeLine ->
+        Model.Nodes _ ->
+            create "fas fa-calendar-alt" SwitchToTimeLineView
+
+        Model.TimeLine _ ->
             create "fas fa-project-diagram" SwitchToNodesView
 
 
-viewSelectedNode : Model -> Html Msg
-viewSelectedNode model =
+viewSelectedNode : Model.Node -> Html Msg
+viewSelectedNode node =
     div
         [ style "background-color" currentTheme.nodeBackground
         , style "border-radius" "5px"
@@ -85,13 +97,7 @@ viewSelectedNode model =
         , style "width" "25%"
         , style "min-height" "100%"
         ]
-        [ case model.selectedNode of
-            Model.NoneSelected ->
-                text ""
-
-            Model.Selected nodeToShow ->
-                selectedNode model nodeToShow
-        ]
+        [ selectedNode node ]
 
 
 renderTag htmlTag tagText =
@@ -107,8 +113,8 @@ renderTag htmlTag tagText =
         [ text tagText ]
 
 
-selectedNode : Model -> Node -> Html Msg
-selectedNode model node =
+selectedNode : Node -> Html Msg
+selectedNode node =
     case node of
         Model.TagNode n ->
             div []
@@ -219,7 +225,7 @@ outline: none;
                         [ type_ "search"
                         , placeholder "type search query"
                         , autofocus True
-                        , value model.tagFilter
+                        , value model.searchFilter.tagFilter
                         , onInput TagFilterInput
                         , style "flex-grow" "1"
                         , style "font-size" "1.2em"
@@ -383,11 +389,11 @@ nodeElement nodes selected simulationNode =
     ]
 
 
-drawGraph : Model -> Svg Msg
-drawGraph model =
+drawGraph : Simulation.Simulation String -> Model.NodeData -> Svg Msg
+drawGraph simulation nodeData =
     let
         simEdges =
-            Simulation.edges model.simulation
+            Simulation.edges simulation
 
         edges : Svg Msg
         edges =
@@ -397,23 +403,20 @@ drawGraph model =
 
         isSelected : Simulation.Node Model.Id -> Bool
         isSelected node =
-            case ( model.selectedNode, node ) of
-                ( Model.Selected (Model.ArticleNode x), y ) ->
+            case ( nodeData.selectedNode, node ) of
+                ( Model.ArticleNode x, y ) ->
                     x.id == y.id
 
-                ( Model.Selected (Model.TagNode x), y ) ->
+                ( Model.TagNode x, y ) ->
                     x.id == y.id
-
-                ( _, _ ) ->
-                    False
 
         toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
         toNodeElement x =
-            nodeElement model.nodes (isSelected x) x
+            nodeElement nodeData.nodes (isSelected x) x
 
         nodes : List (Svg Msg)
         nodes =
-            Simulation.nodes model.simulation
+            Simulation.nodes simulation
                 |> List.map toNodeElement
                 |> List.map (g [ class [ "nodes" ] ])
 
@@ -437,11 +440,11 @@ drawGraph model =
         ]
 
 
-drawTimeLine : Model -> Html Msg
-drawTimeLine model =
+drawTimeLine : Model.NodeData -> Html Msg
+drawTimeLine nodeData =
     let
         articlesByDate =
-            model.nodes
+            nodeData.nodes
                 |> Dict.values
                 |> List.map
                     (\x ->

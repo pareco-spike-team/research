@@ -28,13 +28,9 @@ init _ =
     let
         model : Model
         model =
-            { nodes = Dict.empty
-            , selectedNode = Model.NoneSelected
+            { viewState = Model.Empty
+            , searchFilter = { tagFilter = "", articleFilter = "" }
             , allTags = []
-            , tagFilter = ""
-            , articleFilter = ""
-            , viewMode = Model.Nodes
-            , drag = Nothing
             , simulation =
                 Simulation.init ( 400.0, 400.0 )
                     |> Simulation.withMaxIterations 500
@@ -54,18 +50,21 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     let
         events =
-            case ( model.drag, model.viewMode ) of
-                ( _, Model.TimeLine ) ->
+            case model.viewState of
+                Model.Empty ->
                     []
 
-                ( Nothing, Model.Nodes ) ->
+                Model.TimeLine nodeData ->
+                    []
+
+                Model.Nodes nodeData ->
                     if Simulation.isCompleted model.simulation then
                         []
 
                     else
                         [ Browser.Events.onAnimationFrame Tick ]
 
-                ( Just _, Model.Nodes ) ->
+                Model.DragNode { drag, nodeData } ->
                     [ Browser.Events.onMouseMove (Decode.map (.clientPos >> DragAt) Mouse.eventDecoder)
                     , Browser.Events.onMouseUp (Decode.map (.clientPos >> DragEnd) Mouse.eventDecoder)
                     , Browser.Events.onAnimationFrame Tick

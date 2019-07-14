@@ -1,4 +1,4 @@
-module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), Nodes, ParsedText, SelectedNode(..), Tag, TextType(..), ViewMode(..), WindowSize)
+module Model exposing (Article, Drag, Id, Index, Model, Msg(..), Node(..), NodeData, Nodes, ParsedText, SearchFilter, Tag, TextType(..), ViewState(..), WindowSize, getNodeId)
 
 import Browser.Dom exposing (Viewport)
 import Dict exposing (Dict)
@@ -27,21 +27,27 @@ type Msg
 
 
 type alias Model =
-    { nodes : Nodes
-    , selectedNode : SelectedNode
+    { viewState : ViewState
     , allTags : List Tag
-    , tagFilter : String
-    , articleFilter : String
-    , viewMode : ViewMode
-    , drag : Maybe Drag
+    , searchFilter : SearchFilter
     , simulation : Simulation.Simulation String
     , window : WindowSize
     }
 
 
-type ViewMode
-    = Nodes
-    | TimeLine
+type ViewState
+    = Empty
+    | Nodes NodeData
+    | TimeLine NodeData
+    | DragNode { drag : Drag, nodeData : NodeData }
+
+
+type alias SearchFilter =
+    { tagFilter : String, articleFilter : String }
+
+
+type alias NodeData =
+    { nodes : Nodes, selectedNode : Node }
 
 
 type alias WindowSize =
@@ -60,7 +66,7 @@ type alias Id =
 
 
 type alias Base a =
-    { a | id : String, index : Int }
+    { a | id : Id, index : Int }
 
 
 type alias Tag =
@@ -82,9 +88,14 @@ type Node
     | TagNode Tag
 
 
-type SelectedNode
-    = NoneSelected
-    | Selected Node
+getNodeId : Node -> Id
+getNodeId n =
+    case n of
+        ArticleNode x ->
+            x.id
+
+        TagNode x ->
+            x.id
 
 
 type alias Nodes =

@@ -31,17 +31,15 @@ update msg model =
             )
 
         TagFilterInput s ->
-            ( { model | tagFilter = s, articleFilter = s }, Cmd.none )
+            ( { model | searchFilter = { tagFilter = s, articleFilter = s } }, Cmd.none )
 
         SubmitSearch ->
             ( model, search model )
 
         ClearAll ->
             ( { model
-                | nodes = Dict.empty
-                , selectedNode = Model.NoneSelected
-                , tagFilter = ""
-                , articleFilter = ""
+                | viewState = Model.Empty
+                , searchFilter = { tagFilter = "", articleFilter = "" }
                 , simulation = Simulation.clear model.simulation
               }
             , Cmd.none
@@ -69,33 +67,33 @@ update msg model =
 
         ArticleSelectedResult (Ok articles) ->
             let
-                articleId =
-                    case model.selectedNode of
-                        Model.Selected (ArticleNode x) ->
-                            x.id
+                doUpdate nodeData =
+                    case nodeData.selectedNode of
+                        ArticleNode article ->
+                            articles
+                                |> List.filter (\x -> x.id == article.id)
+                                |> List.foldl
+                                    (\x acc -> { x | tags = x.tags ++ acc.tags })
+                                    article
+                                |> (\x -> { x | tags = List.Extra.uniqueBy (\t -> t.id) x.tags })
+                                |> ArticleNode
+                                |> (\x -> { nodeData | selectedNode = x })
 
-                        Model.Selected (TagNode x) ->
-                            x.id
-
-                        Model.NoneSelected ->
-                            ""
-
-                theArticle =
-                    articles
-                        |> List.filter (\x -> x.id == articleId)
-                        |> List.foldl
-                            (\x dict ->
-                                dict
-                                    |> Dict.get articleId
-                                    |> Maybe.Extra.unwrap x (\y -> { x | tags = x.tags ++ y.tags })
-                                    |> (\y -> Dict.insert articleId y dict)
-                            )
-                            Dict.empty
-                        |> Dict.get articleId
-                        |> Maybe.map ArticleNode
-                        |> Maybe.Extra.unwrap model.selectedNode Model.Selected
+                        TagNode x ->
+                            nodeData
             in
-            ( { model | selectedNode = theArticle }, Cmd.none )
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine x ->
+                    ( { model | viewState = Model.TimeLine (doUpdate x) }, Cmd.none )
+
+                Model.Nodes x ->
+                    ( { model | viewState = Model.Nodes (doUpdate x) }, Cmd.none )
+
+                Model.DragNode { drag, nodeData } ->
+                    ( { model | viewState = Model.DragNode { drag = drag, nodeData = doUpdate nodeData } }, Cmd.none )
 
         ArticleSelectedResult (Err e) ->
             let
@@ -106,28 +104,47 @@ update msg model =
 
         GetRelated id ->
             let
-                node =
-                    Dict.get id model.nodes
+                getRelated viewState =
+                    case Dict.get id viewState.nodes of
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                        Just (TagNode x) ->
+                            ( model, getArticlesWithTag model x )
+
+                        Just (ArticleNode x) ->
+                            ( model, getTagsForArticle model viewState.nodes x ArticleSearchResult )
             in
-            case node of
-                Nothing ->
+            case model.viewState of
+                Model.Empty ->
                     ( model, Cmd.none )
 
-                Just (TagNode x) ->
-                    ( model, getArticlesWithTag model x )
+                Model.TimeLine nodeData ->
+                    getRelated nodeData
 
-                Just (ArticleNode x) ->
-                    ( model, getTagsForArticle model model.nodes x ArticleSearchResult )
+                Model.Nodes nodeData ->
+                    getRelated nodeData
+
+                Model.DragNode { nodeData } ->
+                    getRelated nodeData
 
         ShowNode id ->
             updateShowNode model id
 
         Tick t ->
-            case model.viewMode of
-                Model.TimeLine ->
+            case model.viewState of
+                Model.Empty ->
                     ( model, Cmd.none )
 
-                Model.Nodes ->
+                Model.TimeLine _ ->
+                    ( model, Cmd.none )
+
+                Model.Nodes nodeData ->
+                    ( { model | simulation = Simulation.tick model.simulation }
+                    , Cmd.none
+                    )
+
+                Model.DragNode d ->
                     ( { model | simulation = Simulation.tick model.simulation }
                     , Cmd.none
                     )
@@ -137,92 +154,154 @@ update msg model =
                 newSim =
                     Simulation.lockPosition id model.simulation
             in
-            ( { model | drag = Just (Drag xy xy id), simulation = newSim }, Cmd.none )
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine x ->
+                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x } }, Cmd.none )
+
+                Model.Nodes x ->
+                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x } }, Cmd.none )
+
+                Model.DragNode x ->
+                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x.nodeData } }, Cmd.none )
 
         DragAt xy ->
-            case model.drag of
-                Just { start, id } ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine x ->
+                    ( model, Cmd.none )
+
+                Model.Nodes x ->
+                    ( model, Cmd.none )
+
+                Model.DragNode x ->
                     let
                         ( deltax, deltay ) =
-                            ( Tuple.first xy - Tuple.first start, Tuple.second xy - Tuple.second start )
+                            ( Tuple.first xy - Tuple.first x.drag.start, Tuple.second xy - Tuple.second x.drag.start )
 
                         sim =
-                            Simulation.node id model.simulation
+                            Simulation.node x.drag.id model.simulation
                                 |> Maybe.Extra.unwrap model.simulation
                                     (\node ->
-                                        Simulation.movePosition id ( node.x + deltax, node.y + deltay ) model.simulation
+                                        Simulation.movePosition x.drag.id ( node.x + deltax, node.y + deltay ) model.simulation
                                     )
                     in
-                    ( { model | drag = Just (Drag xy xy id), simulation = sim }, Cmd.none )
-
-                Nothing ->
-                    ( { model | drag = Nothing }, Cmd.none )
+                    ( { model | viewState = Model.DragNode { x | drag = Drag xy xy x.drag.id }, simulation = sim }, Cmd.none )
 
         DragEnd xy ->
-            case model.drag of
-                Just { start, id } ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine x ->
+                    ( model, Cmd.none )
+
+                Model.Nodes x ->
+                    ( model, Cmd.none )
+
+                Model.DragNode x ->
                     let
                         ( deltax, deltay ) =
-                            ( Tuple.first xy - Tuple.first start, Tuple.second xy - Tuple.second start )
+                            ( Tuple.first xy - Tuple.first x.drag.start, Tuple.second xy - Tuple.second x.drag.start )
 
                         sim =
-                            Simulation.node id model.simulation
+                            Simulation.node x.drag.id model.simulation
                                 |> Maybe.Extra.unwrap model.simulation
                                     (\node ->
-                                        Simulation.movePosition id ( node.x + deltax, node.y + deltay ) model.simulation
+                                        Simulation.movePosition x.drag.id ( node.x + deltax, node.y + deltay ) model.simulation
                                     )
                     in
-                    ( { model | drag = Nothing, simulation = sim }, Cmd.none )
-
-                Nothing ->
-                    ( { model | drag = Nothing }, Cmd.none )
+                    ( { model | viewState = Model.Nodes x.nodeData, simulation = sim }, Cmd.none )
 
         SwitchToTimeLineView ->
-            ( { model | viewMode = Model.TimeLine }, Cmd.none )
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine x ->
+                    ( model, Cmd.none )
+
+                Model.Nodes x ->
+                    ( { model | viewState = Model.TimeLine x }, Cmd.none )
+
+                Model.DragNode x ->
+                    ( { model | viewState = Model.TimeLine x.nodeData }, Cmd.none )
 
         SwitchToNodesView ->
-            ( { model | viewMode = Model.Nodes }, Cmd.none )
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine x ->
+                    ( { model | viewState = Model.Nodes x }, Cmd.none )
+
+                Model.Nodes x ->
+                    ( model, Cmd.none )
+
+                Model.DragNode x ->
+                    ( { model | viewState = Model.Nodes x.nodeData }, Cmd.none )
 
 
 updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )
 updateShowNode model id =
     let
-        node =
+        getNode nodes =
             Maybe.Extra.or
-                (Dict.get id model.nodes)
-                (Dict.values model.nodes |> List.head)
-                |> Maybe.Extra.unwrap Model.NoneSelected (\x -> Model.Selected x)
+                (Dict.get id nodes)
+                (Dict.values nodes |> List.head)
 
-        cmd =
+        cmd node =
             case node of
-                Model.Selected (ArticleNode x) ->
+                ArticleNode x ->
                     getTagsForArticle model Dict.empty x ArticleSelectedResult
 
-                Model.Selected (TagNode x) ->
+                TagNode x ->
                     Cmd.none
 
-                Model.NoneSelected ->
-                    Cmd.none
+        doUpdate : Model.NodeData -> (Model.NodeData -> Model.ViewState) -> ( Model, Cmd Msg )
+        doUpdate nodeData f =
+            nodeData.nodes
+                |> getNode
+                |> Maybe.Extra.unwrap
+                    ( model, Cmd.none )
+                    (\n ->
+                        ( { model | viewState = f { nodeData | selectedNode = n } }, cmd n )
+                    )
     in
-    ( { model | selectedNode = node }, cmd )
+    case model.viewState of
+        Model.Empty ->
+            ( model, Cmd.none )
+
+        Model.TimeLine x ->
+            doUpdate x Model.TimeLine
+
+        Model.Nodes x ->
+            doUpdate x Model.Nodes
+
+        Model.DragNode { drag, nodeData } ->
+            doUpdate nodeData (\x -> Model.DragNode { drag = drag, nodeData = x })
 
 
 search : Model -> Cmd Msg
 search model =
     let
         tag =
-            if model.tagFilter == "" then
+            if model.searchFilter.tagFilter == "" then
                 Nothing
 
             else
-                Just ( "tagFilter", model.tagFilter )
+                Just ( "tagFilter", model.searchFilter.tagFilter )
 
         article =
-            if model.articleFilter == "" then
+            if model.searchFilter.articleFilter == "" then
                 Nothing
 
             else
-                Just ( "articleFilter", model.articleFilter )
+                Just ( "articleFilter", model.searchFilter.articleFilter )
     in
     HttpBuilder.get "/api/articles"
         |> withHeader "Content-Type" "application/json"
@@ -235,8 +314,31 @@ search model =
 articleSearchResult : Model -> List Article -> ( Model, Cmd Msg )
 articleSearchResult model articlesFound =
     let
-        nextId =
-            model.nodes |> Dict.keys |> List.length
+        ( nodes, nextId ) =
+            case model.viewState of
+                Model.Empty ->
+                    ( Dict.empty, 0 )
+
+                Model.TimeLine nodeData ->
+                    ( nodeData.nodes
+                    , nodeData.nodes
+                        |> Dict.keys
+                        |> List.length
+                    )
+
+                Model.Nodes nodeData ->
+                    ( nodeData.nodes
+                    , nodeData.nodes
+                        |> Dict.keys
+                        |> List.length
+                    )
+
+                Model.DragNode { drag, nodeData } ->
+                    ( nodeData.nodes
+                    , nodeData.nodes
+                        |> Dict.keys
+                        |> List.length
+                    )
 
         newTags : List Tag
         newTags =
@@ -244,12 +346,12 @@ articleSearchResult model articlesFound =
                 |> List.foldl (\a b -> a.tags ++ b) []
                 |> List.foldl (\t dict -> Dict.insert t.id t dict) Dict.empty
                 |> Dict.values
-                |> List.filter (\x -> not <| Dict.member x.id model.nodes)
+                |> List.filter (\x -> not <| Dict.member x.id nodes)
                 |> List.indexedMap (\idx x -> { id = x.id, index = idx + nextId, tag = x.tag })
 
         nodesWithNewTags : Nodes
         nodesWithNewTags =
-            List.foldl (\tag dict -> Dict.insert tag.id (TagNode tag) dict) model.nodes newTags
+            List.foldl (\tag dict -> Dict.insert tag.id (TagNode tag) dict) nodes newTags
 
         getTagFromNode : Node -> Maybe Tag
         getTagFromNode n =
@@ -269,7 +371,7 @@ articleSearchResult model articlesFound =
 
         newArticles =
             articlesFound
-                |> List.filter (\x -> not <| Dict.member x.id model.nodes)
+                |> List.filter (\x -> not <| Dict.member x.id nodes)
                 |> List.foldl (\x dict -> Dict.insert x.id x dict) Dict.empty
                 |> Dict.values
                 |> List.indexedMap
@@ -314,21 +416,35 @@ articleSearchResult model articlesFound =
                     (\node sim -> Simulation.add node sim)
                     model.simulation
 
-        newModel =
-            { model | nodes = updatedNodes, simulation = graph }
-
         showDefault =
             newTags
                 |> List.head
-                |> Maybe.Extra.unwrap ""
-                    (\x -> x.id)
+                |> Maybe.Extra.unwrap { id = "dummy", index = -1, tag = "dummy" } identity
     in
-    case model.selectedNode of
-        Model.Selected _ ->
-            ( newModel, Cmd.none )
+    case model.viewState of
+        Model.Empty ->
+            updateShowNode
+                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = TagNode showDefault } }
+                showDefault.id
 
-        Model.NoneSelected ->
-            updateShowNode newModel showDefault
+        Model.TimeLine nodeData ->
+            updateShowNode
+                { model | simulation = graph, viewState = Model.TimeLine { nodes = updatedNodes, selectedNode = nodeData.selectedNode } }
+                (Model.getNodeId nodeData.selectedNode)
+
+        Model.Nodes nodeData ->
+            updateShowNode
+                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = nodeData.selectedNode } }
+                (Model.getNodeId nodeData.selectedNode)
+
+        Model.DragNode { drag, nodeData } ->
+            let
+                newNodeData =
+                    { nodeData | nodes = updatedNodes }
+            in
+            updateShowNode
+                { model | simulation = graph, viewState = Model.DragNode { drag = drag, nodeData = newNodeData } }
+                (Model.getNodeId nodeData.selectedNode)
 
 
 searchResultDecoder : Model -> Decoder (List Article)
