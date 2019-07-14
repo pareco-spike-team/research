@@ -66,7 +66,7 @@ type alias Id =
 
 
 type alias Base a =
-    { a | id : Id, index : Int }
+    { a | id : Id }
 
 
 type alias Tag =

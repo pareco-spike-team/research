@@ -314,31 +314,19 @@ search model =
 articleSearchResult : Model -> List Article -> ( Model, Cmd Msg )
 articleSearchResult model articlesFound =
     let
-        ( nodes, nextId ) =
+        nodes =
             case model.viewState of
                 Model.Empty ->
-                    ( Dict.empty, 0 )
+                    Dict.empty
 
                 Model.TimeLine nodeData ->
-                    ( nodeData.nodes
-                    , nodeData.nodes
-                        |> Dict.keys
-                        |> List.length
-                    )
+                    nodeData.nodes
 
                 Model.Nodes nodeData ->
-                    ( nodeData.nodes
-                    , nodeData.nodes
-                        |> Dict.keys
-                        |> List.length
-                    )
+                    nodeData.nodes
 
-                Model.DragNode { drag, nodeData } ->
-                    ( nodeData.nodes
-                    , nodeData.nodes
-                        |> Dict.keys
-                        |> List.length
-                    )
+                Model.DragNode { nodeData } ->
+                    nodeData.nodes
 
         newTags : List Tag
         newTags =
@@ -347,7 +335,6 @@ articleSearchResult model articlesFound =
                 |> List.foldl (\t dict -> Dict.insert t.id t dict) Dict.empty
                 |> Dict.values
                 |> List.filter (\x -> not <| Dict.member x.id nodes)
-                |> List.indexedMap (\idx x -> { id = x.id, index = idx + nextId, tag = x.tag })
 
         nodesWithNewTags : Nodes
         nodesWithNewTags =
@@ -374,10 +361,6 @@ articleSearchResult model articlesFound =
                 |> List.filter (\x -> not <| Dict.member x.id nodes)
                 |> List.foldl (\x dict -> Dict.insert x.id x dict) Dict.empty
                 |> Dict.values
-                |> List.indexedMap
-                    (\idx article ->
-                        { article | index = idx + nextId + List.length newTags }
-                    )
 
         nodesWithNewArticles : Nodes
         nodesWithNewArticles =
@@ -419,7 +402,7 @@ articleSearchResult model articlesFound =
         showDefault =
             newTags
                 |> List.head
-                |> Maybe.Extra.unwrap { id = "dummy", index = -1, tag = "dummy" } identity
+                |> Maybe.Extra.unwrap { id = "dummy", tag = "dummy" } identity
     in
     case model.viewState of
         Model.Empty ->
@@ -474,7 +457,7 @@ tagDecoder =
     let
         ctor : String -> String -> Tag
         ctor id tag =
-            { id = id, index = -1, tag = tag }
+            { id = id, tag = tag }
     in
     Decode.succeed ctor
         |> required "id" string
@@ -489,7 +472,6 @@ articleDecoder model =
             let
                 a =
                     { id = id
-                    , index = -1
                     , date = date
                     , title = title
                     , text = text
