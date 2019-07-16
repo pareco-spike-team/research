@@ -283,11 +283,7 @@ updateMenuMsg model msg =
         Model.Unlock id ->
             let
                 newSim =
-                    model.simulation
-                        |> Simulation.node id
-                        |> Maybe.Extra.unwrap model.simulation
-                            (\node -> Simulation.movePosition id ( node.x, node.y ) model.simulation)
-                        |> Simulation.unlockPosition id
+                    Simulation.unlockAll model.simulation
 
                 newViewState =
                     case model.viewState of
