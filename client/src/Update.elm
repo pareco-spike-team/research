@@ -176,7 +176,12 @@ update msg model =
                     ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = { nodes = nodes, selectedNode = selectedNode, showMenu = False } } }, Cmd.none )
 
                 Model.Nodes x ->
-                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x } }, Cmd.none )
+                    ( { model
+                        | simulation = newSim
+                        , viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x }
+                      }
+                    , Cmd.none
+                    )
 
                 Model.DragNode x ->
                     ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x.nodeData } }, Cmd.none )
@@ -203,8 +208,12 @@ update msg model =
                                     (\node ->
                                         Simulation.movePosition x.drag.id ( node.x + deltax, node.y + deltay ) model.simulation
                                     )
+
+                        nodeData =
+                            x.nodeData
+                                |> (\nodeData_ -> { nodeData_ | showMenu = False })
                     in
-                    ( { model | viewState = Model.DragNode { x | drag = Drag xy xy x.drag.id }, simulation = sim }, Cmd.none )
+                    ( { model | viewState = Model.DragNode { drag = Drag xy xy x.drag.id, nodeData = nodeData }, simulation = sim }, Cmd.none )
 
         DragEnd xy ->
             case model.viewState of
@@ -228,8 +237,13 @@ update msg model =
                                     (\node ->
                                         Simulation.movePosition x.drag.id ( node.x + deltax, node.y + deltay ) model.simulation
                                     )
+
+                        viewState =
+                            x.nodeData
+                                -- |> (\nodeData -> { nodeData | showMenu = True })
+                                |> Model.Nodes
                     in
-                    ( { model | viewState = Model.Nodes x.nodeData, simulation = sim }, Cmd.none )
+                    ( { model | viewState = viewState, simulation = sim }, Cmd.none )
 
         SwitchToTimeLineView ->
             case model.viewState of
