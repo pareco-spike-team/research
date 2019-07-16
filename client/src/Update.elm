@@ -306,7 +306,14 @@ updateMenuMsg model msg =
             ( { model | simulation = newSim, viewState = newViewState }, Cmd.none )
 
         Model.Remove id ->
-            ( model, Cmd.none )
+            let
+                sim =
+                    Simulation.remove id model.simulation
+
+                viewState =
+                    removeNode id model.viewState
+            in
+            ( { model | simulation = sim }, Cmd.none )
 
         Model.RemoveConnected id ->
             ( model, Cmd.none )
@@ -316,6 +323,50 @@ updateMenuMsg model msg =
 
         Model.ConnectTo id ->
             ( model, Cmd.none )
+
+
+removeNode : Model.Id -> Model.ViewState -> Model.ViewState
+removeNode id state =
+    case state of
+        Model.Empty ->
+            state
+
+        Model.TimeLine _ ->
+            state
+
+        Model.DragNode _ ->
+            state
+
+        Model.Nodes data ->
+            let
+                nodes =
+                    data.nodes
+                        |> Dict.filter (\key _ -> key /= id)
+                        |> Dict.map
+                            (\_ v ->
+                                case v of
+                                    TagNode t ->
+                                        v
+
+                                    ArticleNode a ->
+                                        ArticleNode { a | tags = a.tags |> List.filter (\x -> x.id /= id) }
+                            )
+
+                selectedNode =
+                    if id == Model.getNodeId data.selectedNode then
+                        nodes
+                            |> Dict.values
+                            |> List.head
+
+                    else
+                        Just data.selectedNode
+            in
+            Maybe.Extra.unwrap
+                Model.Empty
+                (\selected ->
+                    Model.Nodes { data | nodes = nodes, selectedNode = selected, showMenu = False }
+                )
+                selectedNode
 
 
 updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )

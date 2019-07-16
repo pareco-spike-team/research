@@ -1,4 +1,4 @@
-module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, setCenter, tick, unlockPosition, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
+module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, remove, setCenter, tick, unlockPosition, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
 
 import Dict exposing (Dict)
 import Maybe.Extra
@@ -493,6 +493,26 @@ add ( source, targets ) sim =
             Dict.insert source targets sim.graph
     in
     { sim | nodes = nodes_, graph = graph, tickCount = 0 }
+
+
+remove : comparable -> Simulation comparable -> Simulation comparable
+remove nodeToRemove sim =
+    let
+        graph =
+            sim.graph
+                |> Dict.filter
+                    (\key _ -> key /= nodeToRemove)
+                |> Dict.map
+                    (\_ value ->
+                        value
+                            |> List.filter (\x -> x /= nodeToRemove)
+                    )
+
+        nodes_ =
+            sim.nodes
+                |> Dict.filter (\key _ -> key /= nodeToRemove)
+    in
+    { sim | graph = graph, nodes = nodes_, tickCount = 0 }
 
 
 
