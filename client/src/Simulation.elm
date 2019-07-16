@@ -1,4 +1,4 @@
-module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, setCenter, tick, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
+module Simulation exposing (Edge, Node, Simulation, add, clear, edges, init, isCompleted, lockPosition, movePosition, node, nodes, setCenter, tick, unlockPosition, withGravity, withMass, withMaxIterations, withNodes, withSpringForce, withSpringLength)
 
 import Dict exposing (Dict)
 import Maybe.Extra
@@ -415,6 +415,19 @@ lockPosition x sim =
                 |> Dict.update x
                     (\x2 ->
                         Maybe.map (\(VectorNode a v) -> VectorNode a { v | fixed = True }) x2
+                    )
+    in
+    { sim | nodes = updatedNodes }
+
+
+unlockPosition : comparable -> Simulation comparable -> Simulation comparable
+unlockPosition x sim =
+    let
+        updatedNodes =
+            sim.nodes
+                |> Dict.update x
+                    (\x2 ->
+                        Maybe.map (\(VectorNode a v) -> VectorNode a { v | fixed = False }) x2
                     )
     in
     { sim | nodes = updatedNodes }

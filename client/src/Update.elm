@@ -267,7 +267,29 @@ updateMenuMsg : Model -> Model.MenuMsg -> ( Model, Cmd Msg )
 updateMenuMsg model msg =
     case msg of
         Model.Unlock id ->
-            ( model, Cmd.none )
+            let
+                newSim =
+                    model.simulation
+                        |> Simulation.node id
+                        |> Maybe.Extra.unwrap model.simulation
+                            (\node -> Simulation.movePosition id ( node.x, node.y ) model.simulation)
+                        |> Simulation.unlockPosition id
+
+                newViewState =
+                    case model.viewState of
+                        Model.Empty ->
+                            model.viewState
+
+                        Model.Nodes nodeData ->
+                            Model.Nodes { nodeData | showMenu = False }
+
+                        Model.TimeLine _ ->
+                            model.viewState
+
+                        Model.DragNode _ ->
+                            model.viewState
+            in
+            ( { model | simulation = newSim, viewState = newViewState }, Cmd.none )
 
         Model.Remove id ->
             ( model, Cmd.none )
