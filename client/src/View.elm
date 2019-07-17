@@ -299,7 +299,7 @@ svgFontSize =
     16
 
 
-drawArc circleX circleY circleRadiusInEm angleWidth ( startAngle, icon, onClickMsg ) =
+drawArc circleX circleY circleRadiusInEm angleWidth { startAngle, icon, onClickMsg, helpText } =
     let
         radius =
             1.1 * circleRadiusInEm
@@ -384,7 +384,7 @@ drawArc circleX circleY circleRadiusInEm angleWidth ( startAngle, icon, onClickM
         , class [ "article-menu" ]
         , onClick onClickMsg
         ]
-        []
+        [ title [] [ text helpText ] ]
     ]
 
 
@@ -466,12 +466,13 @@ nodeElement nodeData simulationNode =
 
         menus =
             -- lock/unlock, hide this, hide connected, hide not connected, hide allbut this, connectTo
+            -- hubspot,project-diagram,code-branch,
             if showMenu then
-                [ ( 270, "lock-open", Model.MenuMsg <| Model.Unlock simulationNode.id )
-                , ( 342, "trash", Model.MenuMsg <| Model.Remove simulationNode.id )
-                , ( 54, "unlink", Model.MenuMsg <| Model.RemoveConnected simulationNode.id )
-                , ( 126, "space-shuttle", Model.MenuMsg <| Model.RemoveNotConnected simulationNode.id )
-                , ( 198, "space-shuttle", Model.MenuMsg <| Model.ConnectTo simulationNode.id )
+                [ { helpText = "Unlock nodes and re-layout", startAngle = 270, icon = "lock-open", onClickMsg = Model.MenuMsg <| Model.Unlock simulationNode.id }
+                , { helpText = "Remove this node", startAngle = 342, icon = "trash", onClickMsg = Model.MenuMsg <| Model.Remove simulationNode.id }
+                , { helpText = "Remove this and connected nodes", startAngle = 54, icon = "unlink", onClickMsg = Model.MenuMsg <| Model.RemoveConnected simulationNode.id }
+                , { helpText = "Not implemented yet", startAngle = 126, icon = "space-shuttle", onClickMsg = Model.MenuMsg <| Model.RemoveNotConnected simulationNode.id }
+                , { helpText = "Not implemented yet", startAngle = 198, icon = "space-shuttle", onClickMsg = Model.MenuMsg <| Model.ConnectTo simulationNode.id }
                 ]
                     |> List.concatMap (drawArc simulationNode.x simulationNode.y circleRadius 70)
 
