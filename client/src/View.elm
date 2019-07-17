@@ -466,11 +466,10 @@ nodeElement nodeData simulationNode =
 
         menus =
             -- lock/unlock, hide this, hide connected, hide not connected, hide allbut this, connectTo
-            -- hubspot,project-diagram,code-branch,unlink
             if showMenu then
                 [ ( 270, "lock-open", Model.MenuMsg <| Model.Unlock simulationNode.id )
                 , ( 342, "trash", Model.MenuMsg <| Model.Remove simulationNode.id )
-                , ( 54, "space-shuttle", Model.MenuMsg <| Model.RemoveConnected simulationNode.id )
+                , ( 54, "unlink", Model.MenuMsg <| Model.RemoveConnected simulationNode.id )
                 , ( 126, "space-shuttle", Model.MenuMsg <| Model.RemoveNotConnected simulationNode.id )
                 , ( 198, "space-shuttle", Model.MenuMsg <| Model.ConnectTo simulationNode.id )
                 ]

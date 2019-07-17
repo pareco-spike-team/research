@@ -309,15 +309,71 @@ updateMenuMsg model msg =
                 viewState =
                     removeNode id model.viewState
             in
-            ( { model | simulation = sim }, Cmd.none )
+            ( { model | simulation = sim, viewState = viewState }, Cmd.none )
 
         Model.RemoveConnected id ->
-            ( model, Cmd.none )
+            removeConnected model id
 
         Model.RemoveNotConnected id ->
             ( model, Cmd.none )
 
         Model.ConnectTo id ->
+            ( model, Cmd.none )
+
+
+removeConnected : Model -> Model.Id -> ( Model, Cmd Msg )
+removeConnected model id =
+    case model.viewState of
+        Model.Nodes nodeData ->
+            let
+                nodesToRemove =
+                    Dict.get id nodeData.nodes
+                        |> Maybe.Extra.unwrap []
+                            (\node ->
+                                case node of
+                                    ArticleNode article ->
+                                        id :: List.map (\x -> x.id) article.tags
+
+                                    TagNode _ ->
+                                        nodeData.nodes
+                                            |> Dict.filter
+                                                (\key value ->
+                                                    case value of
+                                                        ArticleNode article ->
+                                                            article.id == id || List.any (\x -> x.id == id) article.tags
+
+                                                        TagNode tag ->
+                                                            tag.id == id
+                                                )
+                                            |> Dict.keys
+                            )
+
+                newNodes =
+                    nodesToRemove
+                        |> List.foldl
+                            (\nodeId nodes -> Dict.remove nodeId nodes)
+                            nodeData.nodes
+
+                newSim =
+                    nodesToRemove
+                        |> List.foldl
+                            (\nodeId sim -> Simulation.remove nodeId sim)
+                            model.simulation
+            in
+            ( { model
+                | simulation = newSim
+                , viewState = Model.Nodes { nodeData | nodes = newNodes }
+              }
+            , Cmd.none
+            )
+
+        Model.Empty ->
+            ( model, Cmd.none )
+
+        Model.TimeLine _ ->
+            ( model, Cmd.none )
+
+        Model.DragNode _ ->
             ( model, Cmd.none )
 
 
