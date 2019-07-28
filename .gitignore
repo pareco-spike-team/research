@@ -19,6 +19,7 @@ npm-debug.log
 ##merge
 *.orig
 
+.serverless/*
 elm-stuff/*
 dist/*
 config.dev.json

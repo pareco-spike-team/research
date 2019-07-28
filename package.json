@@ -35,6 +35,9 @@
   "devDependencies": {
     "elm": "~0.19.0-bugfix6",
     "elm-format": "~0.8.1",
-    "jshint": "~2.10.2"
+    "jshint": "~2.10.2",
+    "serverless": "~1.48.0",
+    "serverless-webpack": "~5.3.1",
+    "webpack": "~4.38.0"
   }
 }

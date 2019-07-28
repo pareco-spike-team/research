@@ -1,0 +1,68 @@
+service: galnetpedia
+
+frameworkVersion: ">=1.48.0 <1.49.0"
+
+plugins:
+  - serverless-webpack
+
+custom:
+  webpack:
+    packager: 'yarn'
+    includeModules: false
+    webpackConfig: ./webpack.config.js
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  stage: ${opt:stage}
+  region: us-east-1
+  profile: galnetpedia
+  environment:
+    ENVIRONMENT: ${opt:stage}
+  memorySize: 256
+  timeout: 30 # in seconds
+  versionFunctions: false
+  deploymentBucket:
+    name: galnetpedia
+    serverSideEncryption: AES256
+  deploymentPrefix: lambdaDeploy
+  role: arn:aws:iam::011918325592:role/lambda-galnetArticleFetch
+  package:
+   individually: true
+  logRetentionInDays: 7
+
+functions:
+  galnetArticleFetch:
+    handler: functions/galnetArticleFetch.run
+    name: galnetpedia-galnetArticleFetch
+    description: Fetches new galnet articles
+    memorySize: 256
+    timeout: 20
+    reservedConcurrency: 1
+    events:
+      - schedule:
+          rate: cron(0 12,18 ? * * *)
+  galnetArticleSave:
+    handler: functions/galnetArticleSave.run
+    name: galnetpedia-galnetArticleSave
+    description: Updates DB with new galnet articles
+    memorySize: 256
+    timeout: 60
+    reservedConcurrency: 2
+    events:
+      - sqs:
+          arn:
+            Fn::Join:
+              - ":"
+              - - "arn:aws:sqs"
+                - ${self:provider.region}
+                - "011918325592"
+                - "galnetArticleUpdate"
+
+          batchSize: 8
+    vpc:
+      securityGroupIds:
+        - sg-061465791db03a3cc
+      subnetIds:
+        - subnet-6d97c962
+
