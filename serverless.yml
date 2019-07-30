@@ -46,8 +46,8 @@ functions:
     handler: functions/galnetArticleSave.run
     name: galnetpedia-galnetArticleSave
     description: Updates DB with new galnet articles
-    memorySize: 256
-    timeout: 60
+    memorySize: 128
+    timeout: 20
     reservedConcurrency: 2
     events:
       - sqs:
