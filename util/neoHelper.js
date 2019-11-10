@@ -35,7 +35,7 @@ const runQuery = session => query => async args => {
 		return record.keys.reduce((obj, key) => {
 			const idx = record._fieldLookup[key];
 			const value = record._fields[idx];
-			if (value.identity != null) {
+			if (value != null && value.identity != null) {
 				const identity = getInt(value.identity);
 				const label = value.labels[0];
 				const lookupKey = `${label}.${identity}`;
