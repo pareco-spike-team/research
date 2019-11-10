@@ -28,7 +28,7 @@ async function getNewestArticleDate() {
 	const result = (await query(findLargestArticleDate)({}));
 	driver.close();
 
-	return result[0].date;
+	return result[0].date || "2010-01-01";
 }
 
 async function saveArticles(articles) {
