@@ -45,7 +45,7 @@ const runQuery = session => query => async args => {
 					objInstance.__meta = {
 						label: label,
 						identity: identity
-					}
+					};
 					objLookup.set(lookupKey, objInstance);
 				}
 				obj[key] = objInstance;
