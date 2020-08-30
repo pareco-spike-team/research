@@ -1,19 +1,17 @@
 module View exposing (view)
 
-import Color exposing (Color)
 import ColorTheme exposing (currentTheme)
-import Dict exposing (Dict)
-import Html exposing (..)
-import Html.Attributes exposing (attribute, autofocus, class, href, id, placeholder, style, type_, value)
+import Dict
+import Html exposing (Html, a, br, button, div, form, i, input, li, p, span, ul)
+import Html.Attributes exposing (autofocus, class, href, id, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Maybe.Extra
-import Model exposing (Article, Model, Msg(..), Node, TextType)
+import Model exposing (Model, Msg(..), Node)
 import Path.LowLevel as LL
-import Path.LowLevel.Parser as Parser
 import Simulation
-import TypedSvg as Svg exposing (circle, g, line, rect, svg, text_, title)
-import TypedSvg.Attributes as SvgAttr exposing (class, color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor, viewBox)
+import TypedSvg as Svg exposing (circle, g, line, svg, text_, title)
+import TypedSvg.Attributes as SvgAttr exposing (color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor)
 import TypedSvg.Attributes.InEm as InEm
 import TypedSvg.Attributes.InPx as InPx exposing (cx, cy, r, strokeWidth, x1, x2, y1, y2)
 import TypedSvg.Core exposing (Attribute, Svg, text)
@@ -66,7 +64,7 @@ getViewModeIcon viewMode =
     let
         create icon msg =
             i
-                [ class [ icon ]
+                [ SvgAttr.class [ icon ]
                 , style "background-color" currentTheme.graph.background
                 , style "color" currentTheme.text.title
                 , style "padding" "5px"
@@ -217,7 +215,7 @@ outline: none;
                         , style "border" "0"
                         ]
                         [ i
-                            [ class [ "fas fa-dollar-sign" ]
+                            [ SvgAttr.class [ "fas fa-dollar-sign" ]
                             , style "color" currentTheme.form.button
                             , style "background-color" currentTheme.form.background
                             ]
@@ -253,7 +251,7 @@ outline: none;
                     , style "background-color" currentTheme.form.background
                     ]
                     [ i
-                        [ class [ "fa-2x", "fas fa-play" ]
+                        [ SvgAttr.class [ "fa-2x", "fas fa-play" ]
                         , style "color" currentTheme.form.button
                         , style "background-color" currentTheme.form.background
                         ]
@@ -267,7 +265,7 @@ outline: none;
                     , style "background-color" currentTheme.form.background
                     ]
                     [ i
-                        [ class [ "fa-2x", "fas fa-trash-alt" ]
+                        [ SvgAttr.class [ "fa-2x", "fas fa-trash-alt" ]
                         , style "color" currentTheme.form.button
                         , style "background-color" currentTheme.form.background
                         ]
@@ -362,7 +360,7 @@ drawArc circleX circleY circleRadiusInEm angleWidth { startAngle, icon, onClickM
     in
     [ Svg.path
         [ SvgAttr.d dsString
-        , class [ "article-menu-back" ]
+        , SvgAttr.class [ "article-menu-back" ]
         , onClick onClickMsg
         ]
         []
@@ -374,14 +372,14 @@ drawArc circleX circleY circleRadiusInEm angleWidth { startAngle, icon, onClickM
         ]
         [ Svg.use
             [ SvgAttr.xlinkHref <| "./fontawesome/sprites/solid.svg#" ++ icon
-            , class [ "icon" ]
+            , SvgAttr.class [ "icon" ]
             , onClick onClickMsg
             ]
             []
         ]
     , Svg.path
         [ SvgAttr.d dsString
-        , class [ "article-menu" ]
+        , SvgAttr.class [ "article-menu" ]
         , onClick onClickMsg
         ]
         [ title [] [ text helpText ] ]
@@ -531,7 +529,7 @@ drawGraph simulation nodeData =
         edges =
             simEdges
                 |> List.map linkElement
-                |> g [ class [ "links" ] ]
+                |> g [ SvgAttr.class [ "links" ] ]
 
         toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
         toNodeElement x =
@@ -541,7 +539,7 @@ drawGraph simulation nodeData =
         nodes =
             Simulation.nodes simulation
                 |> List.map toNodeElement
-                |> List.map (g [ class [ "nodes" ] ])
+                |> List.map (g [ SvgAttr.class [ "nodes" ] ])
 
         width_ =
             TypedSvg.Types.percent 100
