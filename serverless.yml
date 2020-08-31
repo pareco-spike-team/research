@@ -1,6 +1,6 @@
 service: galnetpedia
 
-frameworkVersion: ">=1.48.0 <1.49.0"
+frameworkVersion: ">=1.80.0 <1.89.0"
 
 plugins:
   - serverless-webpack
