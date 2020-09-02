@@ -1,5 +1,10 @@
 'use strict';
 
+const
+	config = require('../../../config.js'),
+	request = require('request-promise-native'),
+	queue = require('../helpers/queue.js')(config).galnetArticleUpdate;
+
 function groupsOf(array, sliceSize) {
 	const sliced = array.reduce((acc, x) => {
 		const last = () => acc.slice(-1)[0];
@@ -26,10 +31,6 @@ async function getArticles(request) {
 
 async function run(event) {
 	try {
-		const
-			config = require('../config.js'),
-			request = require('request-promise-native'),
-			queue = require('./helpers/queue.js')(config).galnetArticleUpdate;
 
 		const articles = await getArticles(request);
 		const groupsOfArticles = groupsOf(articles, 70);

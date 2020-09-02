@@ -11,8 +11,11 @@ const sslAgent = new https.Agent({
 });
 
 module.exports = (() => {
+	if (config.aws.profile && process.env.INSTANCE_ID == null) {
+		process.env.AWS_PROFILE = config.aws.profile;
+	}
 	const AWS = require('aws-sdk');
-	AWS.config.update({ region: config.awsRegion });
+	AWS.config.update({ region: config.aws.region });
 	AWS.config.update({ httpOptions: { agent: sslAgent } });
 	return AWS;
 })();

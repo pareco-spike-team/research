@@ -10,9 +10,9 @@
     "install_packages": "yarn install",
     "precopy": "yarn run install_packages && if [ -d './dist' ]; then rm -Rf ./dist; fi && mkdir -p dist/fontawesome",
     "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free/. ./dist/fontawesome/",
-    "prebuild": "yarn run copy && cp ./client/src/index.html ./dist/index.html && cp ./client/src/galnetpedia.css ./dist/galnetpedia.css",
-    "build": "./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js --debug",
-    "build_release": "yarn prebuild && ./node_modules/.bin/elm make ./client/src/Main.elm --output=./dist/galnetpedia.js"
+    "prebuild": "yarn run copy && cp ./frontend/src/index.html ./dist/index.html && cp ./frontend/src/galnetpedia.css ./dist/galnetpedia.css",
+    "build": "./node_modules/.bin/elm make ./frontend/src/Main.elm --output=./dist/galnetpedia.js --debug",
+    "build_release": "yarn prebuild && ./node_modules/.bin/elm make ./frontend/src/Main.elm --output=./dist/galnetpedia.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "~5.14.0",
@@ -21,7 +21,6 @@
     "body-parser": "~1.19.0",
     "case": "~1.6.3",
     "compression": "~1.7.4",
-    "cookie-parser": "~1.4.5",
     "express": "~4.17.1",
     "express-session": "~1.17.1",
     "helmet": "~3.16.0",

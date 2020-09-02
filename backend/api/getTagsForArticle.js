@@ -2,7 +2,7 @@
 
 const
 	mapToReturn = require('./helper/mapToReturn.js'),
-	{ getDriver, runQuery } = require('../../util/neoHelper.js');
+	{ getDriver, runQuery } = require('../util/neoHelper.js');
 
 
 async function getTagsForArticle(articleId, includeArticles) {

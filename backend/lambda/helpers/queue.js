@@ -1,12 +1,14 @@
 'use strict';
 
+const
+	AWS = require('./aws.js');
+
 const sqs = (config, queueName) => {
 	const
-		AWS = require('./aws.js'),
 		queue = new AWS.SQS(),
 		queueUrl = (() => {
-			const awsRegion = config.awsRegion;
-			const awsAccount = config.awsAccount;
+			const awsRegion = config.aws.region;
+			const awsAccount = config.aws.account;
 			const awsQueueName = config.queue[queueName];
 			return `https://sqs.${awsRegion}.amazonaws.com/${awsAccount}/${awsQueueName}`;
 		})();

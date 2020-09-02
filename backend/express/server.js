@@ -1,14 +1,14 @@
 "use strict";
 
 const
-	config = require("../config.js"),
+	config = require("../../config.js"),
 	webApp = require("./app.js")(config);
 
 const
 	httpPort = 8088;
 
 (function startupNotification() {
-	console.log(`Server started. env: ${config.env}`);
+	console.log(`Server started with environment ${config.env}`);
 })();
 
 (function createHttpServer() {
@@ -26,12 +26,12 @@ process.on("exit", (code) => {
 
 process.on("SIGINT", () => {
 	exitNotification("SIGINT");
-	setTimeout(() => process.exit(0), 500);
+	setTimeout(() => process.exit(0), 100);
 });
 
 process.on("uncaughtException", (error) => {
 	console.log("FATAL. BYE: ");
 	console.log(error);
 	exitNotification(error, "uncaughtException");
-	setTimeout(() => process.exit(0), 500);
+	setTimeout(() => process.exit(0), 100);
 });

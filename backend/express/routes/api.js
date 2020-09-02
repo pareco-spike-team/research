@@ -1,10 +1,10 @@
 'use strict';
 
 const
-	searchByTag = require('../api/searchByTag.js'),
-	getArticlesWithTag = require('../api/getArticlesWithTag.js'),
-	searchArticles = require('../api/searchArticles.js'),
-	getTagsForArticle = require('../api/getTagsForArticle.js');
+	searchByTag = require('../../api/searchByTag.js'),
+	getArticlesWithTag = require('../../api/getArticlesWithTag.js'),
+	searchArticles = require('../../api/searchArticles.js'),
+	getTagsForArticle = require('../../api/getTagsForArticle.js');
 
 
 const onError = (res) => err => {

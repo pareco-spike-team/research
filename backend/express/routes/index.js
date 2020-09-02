@@ -1,15 +1,19 @@
 'use strict';
 
 const
-	Path = require('path');
+	Path = require('path'),
+	staticFolder = Path.join(__dirname, "..", "..", "..", "dist");
 
 const sendIndexFile = (req, res) => {
-	res.sendFile(Path.join(__dirname, '../../dist/index.html'));
+	res.sendFile(Path.join(staticFolder, 'index.html'));
 };
 
-const addRoutes = (router) => {
-	router.get("/", sendIndexFile);
+const addRoutes = (config, router) => {
+	router.get('/ping', (req, res) => res.send('pong'));
+
+	router.use("/", require('./cognito.js')(config));
 	router.use('/', require('./api.js')());
+	router.get("/", sendIndexFile);
 };
 
 function printRoutes(router) {
@@ -30,11 +34,11 @@ function printRoutes(router) {
 	router.stack.forEach(printRoute);
 }
 
-module.exports = function(config, app) {
+module.exports = function (config, app) {
 	const express = require('express');
 	const router = express.Router();
-	const staticFolder = Path.join(__dirname, "..", "..", "dist");
-	addRoutes(router);
+
+	addRoutes(config, router);
 	app.use(express.static(staticFolder));
 	app.use(router);
 

@@ -57,7 +57,7 @@ const saveArticles = driver => async (articles) => {
 
 const run = async (items) => {
 	const
-		{ getDriver, runQuery } = require('../util/neoHelper'),
+		{ getDriver, runQuery } = require('../../util/neoHelper'),
 		shortId = require('shortid'),
 		Case = require('case'),
 		moment = require('moment');

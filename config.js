@@ -3,20 +3,24 @@
 const
 	nodeEnvironment = process.env.NODE_ENV,
 	environment = process.env.ENVIRONMENT,
-	env = nodeEnvironment || environment || "dev",
-	prodConfig = require('./config.prod.js'),
-	devConfig = require('./config.dev.js'),
-	envConfig = (env === 'prod' || env === 'production') ? prodConfig : devConfig;
+	env = environment || nodeEnvironment || "dev",
+	envConfig =
+		(env === 'production') ?
+			require('./config.production.json') :
+			require('./config.dev.json');
 
 
 module.exports = (() => {
 	console.log(`NODE_ENV: '${nodeEnvironment}'. ENVIRONMENT: '${environment}'. RESULT: '${env}'`);
-	console.log(`NODE_ENV: '${nodeEnvironment}'. ENVIRONMENT: '${environment}'. RESULT: '${env}'`);
 	return {
 		env: env,
-		neoUrl: "bolt://localhost:7689",
-		neoUser: 'neo4j',
-		neoPassword: process.env.NEO_PWD || process.argv.slice(-1)[0] || 'is_this_the_password?',
+		neo: {
+			url: "bolt://localhost:7689",
+			user: "neo4j",
+			password: process.env.NEO_PWD ||
+				(process.argv.length > 2 ? process.argv.slice(-1)[0] : null) ||
+				'is_this_the_password?',
+		},
 		...envConfig
 	};
 })();

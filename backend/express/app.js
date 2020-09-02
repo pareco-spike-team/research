@@ -1,13 +1,13 @@
 'use strict';
 
 const
-	Path = require('path'),
 	p3p = require('p3p'),
 	bodyParser = require('body-parser'),
 	compress = require('compression'),
 	session = require('express-session'),
 	helmet = require('helmet'),
-	cookieParser = require('cookie-parser');
+	cookieParser = require('cookie-parser'),
+	routes = require('./routes/index.js');
 
 
 function setupExpress() {
@@ -46,29 +46,9 @@ function setupExpress() {
 	return app;
 }
 
-function setupRoutes(app, config) {
-	const
-		routes = require('./routes/index.js');
-
-	app.get('/ping', function(req, res) {
-		res.send('pong');
-	});
-	app.get('/*', function(req, res, next) {
-		const ignore = /^\/(lib)|(css)|(js)|(img)|(api)|(fonts)|(svg).*$/;
-		if (ignore.test(req.originalUrl)) {
-			next();
-		} else {
-			const path = Path.join(__dirname, '../dist/index.html');
-			res.sendFile(path);
-		}
-	});
-
-	routes(config, app);
-}
-
 function create(config) {
 	let app = setupExpress();
-	setupRoutes(app, config);
+	routes(config, app);
 
 	return {
 		start: app
