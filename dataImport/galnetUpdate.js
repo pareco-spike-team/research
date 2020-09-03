@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	{ getDriver, runQuery } = require('../util/neoHelper'),
+	{ getDriver, runQuery } = require('../backend/util/neoHelper'),
 	request = require('request-promise-native'),
 	shortId = require('shortid'),
 	Case = require('case'),
