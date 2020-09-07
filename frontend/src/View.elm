@@ -2,10 +2,11 @@ module View exposing (view)
 
 import ColorTheme exposing (currentTheme)
 import Dict
-import Html exposing (Html, a, br, button, div, form, i, input, li, p, span, ul)
+import Html exposing (Html, a, br, button, div, form, h1, i, input, li, p, span, ul)
 import Html.Attributes exposing (autofocus, class, href, id, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
+import Http
 import Maybe.Extra
 import Model exposing (Model, Msg(..), Node)
 import Path.LowLevel as LL
@@ -16,6 +17,9 @@ import TypedSvg.Attributes.InEm as InEm
 import TypedSvg.Attributes.InPx as InPx exposing (cx, cy, r, strokeWidth, x1, x2, y1, y2)
 import TypedSvg.Core exposing (Attribute, Svg, text)
 import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), FontWeight(..), LengthAdjust(..))
+import Util
+import Util.LightBox as LightBox
+import Util.RemoteData exposing (RemoteData(..))
 
 
 view : Model -> Html Msg
@@ -56,6 +60,74 @@ view model =
                 ]
             , selectedNodeView
             ]
+        , showError model
+        ]
+
+
+showError : Model -> Html Msg
+showError model =
+    case model.user of
+        Suspended ->
+            text ""
+
+        InFlight ->
+            text ""
+
+        Success _ ->
+            text ""
+
+        Fail e ->
+            LightBox.view LightBox.Normal
+                (errorPopup e)
+                Nothing
+
+
+errorPopup : Http.Error -> Html Msg
+errorPopup error =
+    let
+        cssContainer =
+            [ style "display" "flex"
+            , style "flex-direction" "column"
+            , style "background-color" "white"
+            ]
+
+        cssHeader =
+            [ style "background-color" "red" ]
+
+        cssBody =
+            [ style "padding" "2rem"
+            , style "font-size" "x-large"
+            ]
+
+        cssFooter =
+            []
+    in
+    div
+        cssContainer
+        [ div cssHeader
+            [ h1 [] [ text "An error occurred" ] ]
+        , div cssBody
+            (case error of
+                Http.BadStatus statusCode ->
+                    case statusCode of
+                        401 ->
+                            [ div
+                                []
+                                [ text "You are not logged in." ]
+                            , div
+                                []
+                                [ text "You can login ", a [ href "auth/signin" ] [ text "here" ], text "." ]
+                            ]
+
+                        _ ->
+                            [ div [] [ text ("Request failed, server return status code " ++ String.fromInt statusCode) ]
+                            ]
+
+                _ ->
+                    [ text (Util.httpErrorToString error) ]
+            )
+        , div cssFooter
+            []
         ]
 
 
@@ -100,6 +172,7 @@ viewSelectedNode node =
         [ selectedNode node ]
 
 
+renderTag : (List (Attribute Msg) -> List (Html Msg) -> Html Msg) -> String -> Html Msg
 renderTag htmlTag tagText =
     htmlTag
         [ style "list-style-type" "none"
@@ -276,6 +349,7 @@ outline: none;
         ]
 
 
+linkElement : Simulation.Edge -> Svg Msg
 linkElement edge =
     line
         [ strokeWidth 1

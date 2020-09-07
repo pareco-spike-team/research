@@ -3,13 +3,14 @@ module Main exposing (init, main)
 import Browser
 import Browser.Dom
 import Browser.Events
-import Dict exposing (Dict)
+import Command
 import Html.Events.Extra.Mouse as Mouse
 import Json.Decode as Decode
 import Model exposing (Id, Model, Msg(..))
 import Simulation
 import Task
-import Update exposing (getAllTags, update)
+import Update exposing (update)
+import Util.RemoteData as RemoteData exposing (RemoteData(..))
 import View exposing (view)
 
 
@@ -29,6 +30,7 @@ init _ =
         model : Model
         model =
             { viewState = Model.Empty
+            , user = RemoteData.InFlight
             , searchFilter = { tagFilter = "", articleFilter = "" }
             , allTags = []
             , simulation =
@@ -41,7 +43,7 @@ init _ =
     ( model
     , Cmd.batch
         [ Task.perform Model.GotViewport Browser.Dom.getViewport
-        , getAllTags
+        , Command.getUser
         ]
     )
 
@@ -78,4 +80,7 @@ subscriptions model =
 
 
 type alias BuildGraphTemp a =
-    { idx : Int, id : Id, value : a }
+    { idx : Int
+    , id : Id
+    , value : a
+    }

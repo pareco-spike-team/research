@@ -18,12 +18,36 @@ const get = (res, f) => {
 		catch(onError(res));
 };
 
+const isSessionExpired = req => {
+	const cognitoSession = req.session.cognito;
+	if (!cognitoSession) {
+		return true;
+	}
+	const expired = new Date() > new Date(cognitoSession.expiresAt);
+	return expired;
+};
+
+const getUser = async (req, res) => {
+	try {
+		if (isSessionExpired(req)) {
+			res.status(401).send('Not logged in');
+		} else {
+			res.json(req.session.user);
+		}
+	}
+	catch (err) {
+		onError(res)(err);
+	}
+};
+
 const api = {
 	searchByTag: (req, res) => get(res, () => searchByTag(req.query.filter)),
 	getArticlesWithTag: (req, res) => get(res, () => getArticlesWithTag(req.params.tagId)),
 
 	searchArticles: (req, res) => get(res, () => searchArticles(req.query.tagFilter, req.query.articleFilter)),
-	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles))
+	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles)),
+
+	getUser: getUser
 };
 
 module.exports = () => {
@@ -35,6 +59,8 @@ module.exports = () => {
 	router.get('/api/tags/:tagId/articles', api.getArticlesWithTag);
 	router.get('/api/articles', api.searchArticles);
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
+
+	router.get('/api/user', api.getUser)
 
 	return router;
 };

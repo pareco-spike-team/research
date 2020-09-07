@@ -11,7 +11,7 @@ const sendIndexFile = (req, res) => {
 const addRoutes = (config, router) => {
 	router.get('/ping', (req, res) => res.send('pong'));
 
-	router.use("/", require('./cognito.js')(config));
+	router.use("/", require('./auth.js')(config));
 	router.use('/', require('./api.js')());
 	router.get("/", sendIndexFile);
 };
@@ -34,13 +34,35 @@ function printRoutes(router) {
 	router.stack.forEach(printRoute);
 }
 
+function addFakeUser(req) {
+	req.session.cognito = {
+		createdAt: new Date(),
+		expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+	};
+	req.session.user = {
+		Nickname: "Tinfoil",
+		GivenName: "Testy",
+		FamilyName: "Tinfoil",
+		Email: "tinfoil@localhost",
+		EmailVerified: "true"
+	};
+}
+
 module.exports = function (config, app) {
 	const express = require('express');
 	const router = express.Router();
+	const isDev = config.env === 'dev';
 
+	router.use("/*", (req, res, next) => {
+		if (isDev && !config.forceCognito) {
+			addFakeUser(req);
+		}
+		next();
+	});
 	addRoutes(config, router);
 	app.use(express.static(staticFolder));
 	app.use(router);
 
 	printRoutes(router);
 };
+

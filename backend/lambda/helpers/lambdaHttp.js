@@ -1,7 +1,5 @@
 'use strict';
 
-
-
 module.exports = async (action) => {
 	try {
 		const result = await action();

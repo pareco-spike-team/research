@@ -6,11 +6,10 @@ const
 	compress = require('compression'),
 	session = require('express-session'),
 	helmet = require('helmet'),
-	cookieParser = require('cookie-parser'),
 	routes = require('./routes/index.js');
 
 
-function setupExpress() {
+function setupExpress(env) {
 	const
 		express = require('express');
 
@@ -20,6 +19,8 @@ function setupExpress() {
 	app.use(helmet());
 
 	app.use(require("morgan")("short"));
+	app.enable('trust proxy');
+
 
 	app.use(bodyParser.urlencoded({ extended: true }));
 	app.use(bodyParser.json({ limit: '5mb' }));
@@ -34,20 +35,19 @@ function setupExpress() {
 		rolling: true,
 
 		cookie: {
-			secure: true,
+			secure: env !== 'dev',
 			sameSite: true,
 			maxAge: 7 * ONE_DAY
 		}
 	}));
 
 	app.use(p3p(p3p.recommended));
-	app.use(cookieParser());
 
 	return app;
 }
 
 function create(config) {
-	let app = setupExpress();
+	let app = setupExpress(config.env);
 	routes(config, app);
 
 	return {

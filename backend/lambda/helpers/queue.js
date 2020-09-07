@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	AWS = require('./aws.js');
+	AWS = require('../../util/aws.js');
 
 const sqs = (config, queueName) => {
 	const
