@@ -24,6 +24,7 @@ async function tagArticles() {
 				AND lower(a.title) <> 'week in review'
 				AND (NOT lower(a.title) STARTS WITH 'community goal:')
 				AND (NOT lower(a.title) STARTS WITH 'freelance report:')
+				AND (NOT lower(a.title) STARTS WITH 'a week in powerplay')
 			MATCH (t:Tag) WHERE t.tag = {tag}
 			MERGE (a)-[:Tag]->(t)
 			RETURN count(a) AS articlesUpdated`;
