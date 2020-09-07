@@ -1,0 +1,22 @@
+{
+	"aws": {
+		"profile": "profile_name",
+		"account": "account_id",
+		"region": "region",
+		"cognito": {
+			"userPoolId": "userPoolId",
+			"appClientId": "appClientId",
+			"appClientSecret": "appClientSecret",
+			"baseUri": "baseUri"
+		}
+	},
+	"queue": {
+		"galnetArticleUpdate": "galnetArticleUpdate"
+	},
+	"neo": {
+		"url": "bolt://localhost:7689",
+		"user": "neo4j",
+		"password": "password you set on your db"
+	},
+	"forceCognito": false
+}
