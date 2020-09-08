@@ -52,7 +52,8 @@ const signedIn = config => {
 					...tokens
 				};
 				const user = await cognito.getUser(tokens.access_token);
-				req.session.user = user;
+				const groups = await cognito.getGroupsForUser(user.username);
+				req.session.user = { ...user, groups: groups.map(x => x.GroupName) };
 			}
 
 			res.redirect('/');

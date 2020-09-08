@@ -27,7 +27,7 @@ module Model exposing
 import Browser.Dom exposing (Viewport)
 import Dict exposing (Dict)
 import Http
-import Json.Decode as Decode exposing (Decoder, field, string, succeed)
+import Json.Decode as JD exposing (Decoder, fail, field, list, string, succeed)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required)
 import Simulation
 import Time
@@ -132,7 +132,7 @@ tagDecoder =
         ctor id tag =
             { id = id, tag = tag }
     in
-    Decode.succeed ctor
+    succeed ctor
         |> required "id" string
         |> required "tag" string
 
@@ -164,7 +164,7 @@ articleDecoder model =
             in
             { a | parsedText = parseText model a }
     in
-    Decode.succeed ctor
+    succeed ctor
         |> required "id" string
         |> required "date" string
         |> required "title" string
@@ -210,17 +210,48 @@ type Email
     | NotVerified String
 
 
+type Group
+    = ReadOnlyUser
+    | User_
+    | Admin
+    | SuperAdmin
+
+
+groupDecoder : Decoder Group
+groupDecoder =
+    string
+        |> JD.andThen
+            (\grp ->
+                case String.toLower grp of
+                    "readonlyuser" ->
+                        succeed ReadOnlyUser
+
+                    "user" ->
+                        succeed User_
+
+                    "admin" ->
+                        succeed Admin
+
+                    "superadmin" ->
+                        succeed SuperAdmin
+
+                    _ ->
+                        fail ("Could not decode Group. No group translates to string '" ++ grp ++ "'")
+            )
+
+
 type alias User =
     { nickname : String
     , givenName : String
     , familyName : String
     , email : Email
+    , groups : List Group
     }
 
 
 userDecoder : Decoder User
 userDecoder =
-    Decode.map2
+    JD.map2
         (\email verified ->
             if verified == "true" then
                 Verified email
@@ -230,13 +261,14 @@ userDecoder =
         )
         (field "Email" string)
         (field "EmailVerified" string)
-        |> Decode.andThen
+        |> JD.andThen
             (\email ->
                 succeed User
                     |> required "Nickname" string
                     |> required "GivenName" string
                     |> required "FamilyName" string
                     |> hardcoded email
+                    |> required "groups" (list groupDecoder)
             )
 
 
@@ -246,20 +278,20 @@ searchResultDecoder model =
         f : Article -> Decoder Article
         f a =
             field "tags" tagListDecoder
-                |> Decode.map
+                |> JD.map
                     (\tags ->
                         { a | tags = tags }
                     )
     in
-    Decode.list
+    list
         (field "article" (articleDecoder model)
-            |> Decode.andThen (\a -> f a)
+            |> JD.andThen (\a -> f a)
         )
 
 
 tagListDecoder : Decoder (List Tag)
 tagListDecoder =
-    Decode.list tagDecoder
+    list tagDecoder
 
 
 parseText : Model -> Article -> List ParsedText

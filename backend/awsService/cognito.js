@@ -21,8 +21,7 @@ module.exports = (config, cognito) => {
 			AccessToken: accessToken
 		};
 		const result = await cognito.getUser(params).promise();
-		console.log(result);
-		const cognitoUser = nameValueArrayToObject(result.UserAttributes);
+		const cognitoUser = { username: result.Username, ...nameValueArrayToObject(result.UserAttributes) };
 
 		/* Example cognitoUSer
 		{
@@ -48,8 +47,19 @@ module.exports = (config, cognito) => {
 		return { ...result, UserAttributes: nameValueArrayToObject(result.UserAttributes) };
 	};
 
+	const getGroupsForUser = async (username) => {
+		const params = {
+			UserPoolId: config.aws.cognito.userPoolId,
+			Username: username,
+			Limit: 20
+		};
+		const result = await cognito.adminListGroupsForUser(params).promise();
+		return result.Groups;
+	};
+
 	return {
 		getUser,
-		getAdminUser
+		getAdminUser,
+		getGroupsForUser
 	};
 };

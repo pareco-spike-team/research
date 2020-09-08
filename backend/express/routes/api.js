@@ -60,7 +60,7 @@ module.exports = () => {
 	router.get('/api/articles', api.searchArticles);
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
 
-	router.get('/api/user', api.getUser)
+	router.get('/api/user', api.getUser);
 
 	return router;
 };
