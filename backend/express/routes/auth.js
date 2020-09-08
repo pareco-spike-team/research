@@ -1,60 +1,41 @@
 'use strict';
 
 const
-	express = require('express'),
-	axios = require('axios').default,
-	qs = require('qs'),
-	AWS = require('../../util/aws.js'),
-	Cognito = new AWS.CognitoIdentityServiceProvider({ apiVersion: '2016-04-18' }),
-	cognitoFactory = require('../../awsService/cognito.js');
+	express = require('express');
 
 
-const signedIn = config => {
+const signedIn = (config, cognito) => {
 	const isDev = config.env === 'dev';
-	const cognito = cognitoFactory(config, Cognito);
 
-	const getTokens = async (code, redirectUri) => {
-		const appClientId = config.aws.cognito.appClientId;
-		const appClientSecret = config.aws.cognito.appClientSecret;
-		const secret = Buffer.from(`${appClientId}:${appClientSecret}`).toString('base64');
+	const getSignedInUser = async (protocol, host, code) => {
+		if (isDev && !config.forceCognito) {
 
-		const data = {
-			grant_type: 'authorization_code', // refresh_token or client_credentials.,
-			client_id: appClientId,
-			code: code,
-			redirect_uri: redirectUri,
-		};
-		const options = {
-			headers: {
-				'content-type': 'application/x-www-form-urlencoded',
-				'Authorization': `Basic ${secret}`,
-			},
-		};
+		} else {
+			const redirectUri = `${protocol}://${host}/auth/signedin`;
+			const tokens = await cognito.getTokensByCode(code, redirectUri);
+			const now = Date.now();
+			return {
+				createdAt: new Date(now),
+				expiresAt: new Date(now + 1000 * tokens.expires_in),
+				...tokens
+			};
+		}
+	};
 
-		const url = `${config.aws.cognito.baseUri}/oauth2/token`;
-		const response = await axios.post(url, qs.stringify(data), options);
-		return response.data;
+	const getUserFromCognito = async (accessToken) => {
+		const user = await cognito.getUser(accessToken);
+		const groups = await cognito.getGroupsForUser(user.username);
+		return { ...user, groups: groups.map(x => x.GroupName) };
 	};
 
 	return async (req, res) => {
 		const code = req.query.code; // ex: 'a8f1491d-b1fa-44b6-9b9b-d30e06adffa9'
 
 		try {
-			if (isDev && !config.forceCognito) {
-
-			} else {
-				const redirectUri = `${req.protocol}://${req.headers.host}/auth/signedin`;
-				const tokens = await getTokens(code, redirectUri);
-				const now = Date.now();
-				req.session.cognito = {
-					createdAt: new Date(now),
-					expiresAt: new Date(now + 1000 * tokens.expires_in),
-					...tokens
-				};
-				const user = await cognito.getUser(tokens.access_token);
-				const groups = await cognito.getGroupsForUser(user.username);
-				req.session.user = { ...user, groups: groups.map(x => x.GroupName) };
-			}
+			const cognitoTokens = await getSignedInUser(req.protocol, req.headers.host, code);
+			const user = await getUserFromCognito(cognitoTokens.access_token);
+			req.session.cognito = cognitoTokens;
+			req.session.user = user;
 
 			res.redirect('/');
 		} catch (err) {
@@ -90,11 +71,11 @@ const signUp = config => async (req, res) => {
 	res.redirect(url);
 };
 
-module.exports = (config) => {
+module.exports = (config, cognito) => {
 	const
 		router = express.Router();
 
-	router.get('/auth/signedin', signedIn(config));
+	router.get('/auth/signedin', signedIn(config, cognito));
 	router.get('/auth/signedout', signedOut());
 	router.get('/auth/signin', signIn(config));
 	router.get('/auth/signup', signUp(config));

@@ -2,7 +2,10 @@
 
 const
 	Path = require('path'),
-	staticFolder = Path.join(__dirname, "..", "..", "..", "dist");
+	staticFolder = Path.join(__dirname, "..", "..", "..", "dist"),
+	AWS = require('../../util/aws.js'),
+	Cognito = new AWS.CognitoIdentityServiceProvider({ apiVersion: '2016-04-18' }),
+	cognitoFactory = require('../../awsService/cognito.js');
 
 const sendIndexFile = (req, res) => {
 	res.sendFile(Path.join(staticFolder, 'index.html'));
@@ -11,7 +14,7 @@ const sendIndexFile = (req, res) => {
 const addRoutes = (config, router) => {
 	router.get('/ping', (req, res) => res.send('pong'));
 
-	router.use("/", require('./auth.js')(config));
+	router.use("/", require('./auth.js')(config, cognitoFactory(config, Cognito)));
 	router.use('/', require('./api.js')());
 	router.get("/", sendIndexFile);
 };
