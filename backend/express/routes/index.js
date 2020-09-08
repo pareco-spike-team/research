@@ -43,11 +43,13 @@ function addFakeUser(req) {
 		expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
 	};
 	req.session.user = {
+		username: "tinfoil",
 		Nickname: "Tinfoil",
 		GivenName: "Testy",
 		FamilyName: "Tinfoil",
 		Email: "tinfoil@localhost",
-		EmailVerified: "true"
+		EmailVerified: "true",
+		groups: ['User', 'Admin', 'SuperAdmin']
 	};
 }
 
