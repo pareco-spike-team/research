@@ -1,6 +1,7 @@
 'use strict';
 
 const
+	mapper = require('../util/neoMapper.js'),
 	{ getDriver, runQuery } = require('../util/neoHelper.js');
 
 async function searchByTag(filter) {
@@ -12,7 +13,7 @@ async function searchByTag(filter) {
 		"MATCH (tag:Tag) RETURN tag ORDER BY tag.tag";
 	const result = await runQuery(s)(query)({ tag: tagMatch });
 	driver.close();
-	return result;
+	return mapper().map(result).toResult();
 }
 
 module.exports = searchByTag;

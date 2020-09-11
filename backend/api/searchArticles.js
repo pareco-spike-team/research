@@ -1,13 +1,13 @@
 'use strict';
 
 const
-	mapToReturn = require('./helper/mapToReturn.js'),
+	mapper = require('../util/neoMapper.js'),
 	{ getDriver, runQuery } = require('../util/neoHelper.js');
 
 async function searchArticles(tags, filter) {
 	const driver = getDriver();
 	try {
-		const s = driver.session();
+		const session = driver.session();
 		const buildMatch = xs => {
 			return '(?muis)' + (
 				xs.
@@ -21,28 +21,25 @@ async function searchArticles(tags, filter) {
 		};
 		const tagQuery =
 			tags ?
-				runQuery(s)
-					("MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE tag.tag =~ {tag} RETURN article, tag")
+				runQuery(session)
+					("MATCH (article:Article)-[links:Tag]->(tag:Tag) WHERE tag.tag =~ {tag} RETURN article, tag, links")
 					({ tag: buildMatch(tags) }) :
 				Promise.resolve([]);
 		const articleQuery =
 			filter ?
-				runQuery(s)
+				runQuery(session)
 					("MATCH (article:Article) WHERE article.title =~ {article} OR article.text =~ {article} RETURN article")
 					({ article: buildMatch(filter) }) :
 				Promise.resolve([]);
 
 		const [tagsResult, articleResult] = await Promise.all([tagQuery, articleQuery]);
 
-		const articleMap =
-			new Map(articleResult.map(x => {
-				x.tags = [];
-				delete x.tag;
-				return [x.article.id, x];
-			}));
-
-		const result = mapToReturn(articleMap, tagsResult);
-		return [...result.values()];
+		const result =
+			mapper().
+				map(articleResult).
+				map(tagsResult).
+				toResult();
+		return result;
 	} finally {
 		driver.close();
 	}

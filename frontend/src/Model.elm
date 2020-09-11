@@ -25,10 +25,12 @@ module Model exposing
     )
 
 import Browser.Dom exposing (Viewport)
+import Color
 import Dict exposing (Dict)
 import Http
-import Json.Decode as JD exposing (Decoder, fail, field, list, string, succeed)
-import Json.Decode.Pipeline exposing (hardcoded, optional, required)
+import Json.Decode as JD exposing (Decoder, at, fail, field, int, list, string, succeed)
+import Json.Decode.Pipeline exposing (hardcoded, optional, required, requiredAt)
+import Maybe.Extra
 import Simulation
 import Time
 import Util.RemoteData exposing (RemoteData(..))
@@ -37,8 +39,8 @@ import Util.RemoteData exposing (RemoteData(..))
 type Msg
     = ResizeWindow ( Int, Int )
     | GotViewport Viewport
-    | ArticleSearchResult (Result Http.Error (List Article))
-    | ArticleSelectedResult (Result Http.Error (List Article))
+    | ArticleSearchResult (Result Http.Error (List Node))
+    | ArticleSelectedResult (Result Http.Error (List Node))
     | AllTags (Result Http.Error (List Tag))
     | GotUser (Result Http.Error User)
     | TagFilterInput String
@@ -125,12 +127,28 @@ type alias Tag =
     Base { tag : String }
 
 
+colorDecoder : Decoder (Maybe Color.Color)
+colorDecoder =
+    list int
+        |> JD.andThen
+            (\res ->
+                case res of
+                    [ r, g, b ] ->
+                        succeed (Just (Color.rgb255 r g b))
+
+                    _ ->
+                        JD.fail "Color needs array to contain 3 elements"
+            )
+
+
 tagDecoder : Decoder Tag
 tagDecoder =
     let
         ctor : String -> String -> Tag
         ctor id tag =
-            { id = id, tag = tag }
+            { id = id
+            , tag = tag
+            }
     in
     succeed ctor
         |> required "id" string
@@ -150,15 +168,15 @@ type alias Article =
 articleDecoder : Model -> Decoder Article
 articleDecoder model =
     let
-        ctor : String -> String -> String -> String -> List Tag -> Article
-        ctor id date title text tags =
+        ctor : String -> String -> String -> String -> Article
+        ctor id date title text =
             let
                 a =
                     { id = id
                     , date = date
                     , title = title
                     , text = text
-                    , tags = tags
+                    , tags = []
                     , parsedText = []
                     }
             in
@@ -169,124 +187,119 @@ articleDecoder model =
         |> required "date" string
         |> required "title" string
         |> required "text" string
-        |> optional "tags" tagListDecoder []
+
+
+type alias Link =
+    { from : Id
+    , to : Id
+    , color : Maybe Color.Color
+    }
+
+
+linkDecoder : Decoder Link
+linkDecoder =
+    succeed Link
+        |> requiredAt [ "_meta", "from" ] string
+        |> requiredAt [ "_meta", "to" ] string
+        |> optional "color" colorDecoder Nothing
 
 
 type Node
     = ArticleNode Article
     | TagNode Tag
+    | LinkNode Link
 
 
-getNodeId : Node -> Id
-getNodeId n =
-    case n of
-        ArticleNode x ->
-            x.id
-
-        TagNode x ->
-            x.id
-
-
-type alias Nodes =
-    Dict Id Node
-
-
-type alias Index =
-    Int
-
-
-type alias ParsedText =
-    ( Index, String, TextType )
-
-
-type TextType
-    = TypeText
-    | TypeTag
-    | NewLine
-
-
-type Email
-    = Verified String
-    | NotVerified String
-
-
-type Group
-    = ReadOnlyUser
-    | User_
-    | Admin
-    | SuperAdmin
-
-
-groupDecoder : Decoder Group
-groupDecoder =
-    string
+nodeDecoder : Model -> Decoder Node
+nodeDecoder model =
+    let
+        metaDecoder : Decoder ( String, String )
+        metaDecoder =
+            JD.map2
+                (\type_ label ->
+                    ( type_, label )
+                )
+                (at [ "_meta", "type" ] string)
+                (at [ "_meta", "label" ] string)
+    in
+    metaDecoder
         |> JD.andThen
-            (\grp ->
-                case String.toLower grp of
-                    "readonlyuser" ->
-                        succeed ReadOnlyUser
+            (\( type_, label ) ->
+                case ( type_, label ) of
+                    ( "Label", "Article" ) ->
+                        articleDecoder model |> JD.map ArticleNode
 
-                    "user" ->
-                        succeed User_
+                    ( "Label", "Tag" ) ->
+                        tagDecoder |> JD.map TagNode
 
-                    "admin" ->
-                        succeed Admin
-
-                    "superadmin" ->
-                        succeed SuperAdmin
+                    ( "Tag", "Link" ) ->
+                        linkDecoder |> JD.map LinkNode
 
                     _ ->
-                        fail ("Could not decode Group. No group translates to string '" ++ grp ++ "'")
+                        JD.fail ("Unknown case (" ++ type_ ++ ", " ++ label ++ ").")
             )
 
 
-type alias User =
-    { nickname : String
-    , givenName : String
-    , familyName : String
-    , email : Email
-    , groups : List Group
-    }
-
-
-userDecoder : Decoder User
-userDecoder =
-    JD.map2
-        (\email verified ->
-            if verified == "true" then
-                Verified email
-
-            else
-                NotVerified email
-        )
-        (field "Email" string)
-        (field "EmailVerified" string)
-        |> JD.andThen
-            (\email ->
-                succeed User
-                    |> required "Nickname" string
-                    |> required "GivenName" string
-                    |> required "FamilyName" string
-                    |> hardcoded email
-                    |> required "groups" (list groupDecoder)
-            )
-
-
-searchResultDecoder : Model -> Decoder (List Article)
+searchResultDecoder : Model -> Decoder (List Node)
 searchResultDecoder model =
-    let
-        f : Article -> Decoder Article
-        f a =
-            field "tags" tagListDecoder
-                |> JD.map
-                    (\tags ->
-                        { a | tags = tags }
-                    )
-    in
-    list
-        (field "article" (articleDecoder model)
-            |> JD.andThen (\a -> f a)
-        )
+    list (nodeDecoder model)
+        |> JD.map
+            (\nodes ->
+                let
+                    tags =
+                        nodes
+                            |> List.map
+                                (\node ->
+                                    case node of
+                                        TagNode t ->
+                                            Just ( t.id, t )
+
+                                        ArticleNode _ ->
+                                            Nothing
+
+                                        LinkNode _ ->
+                                            Nothing
+                                )
+                            |> Maybe.Extra.values
+                            |> Dict.fromList
+
+                    links =
+                        nodes
+                            |> List.map
+                                (\node ->
+                                    case node of
+                                        LinkNode x ->
+                                            Just x
+
+                                        TagNode _ ->
+                                            Nothing
+
+                                        ArticleNode _ ->
+                                            Nothing
+                                )
+                            |> Maybe.Extra.values
+
+                    addTags article =
+                        links
+                            |> List.filter (\link -> link.from == article.id)
+                            |> List.map (\link -> Dict.get link.to tags)
+                            |> Maybe.Extra.values
+                            |> (\xs -> { article | tags = xs })
+                in
+                nodes
+                    |> List.map
+                        (\node ->
+                            case node of
+                                ArticleNode x ->
+                                    addTags x |> ArticleNode
+
+                                TagNode _ ->
+                                    node
+
+                                LinkNode _ ->
+                                    node
+                        )
+            )
 
 
 tagListDecoder : Decoder (List Tag)
@@ -411,3 +424,101 @@ parseText model article =
                             x :: acc
                 )
                 []
+
+
+getNodeId : Node -> Id
+getNodeId n =
+    case n of
+        ArticleNode x ->
+            x.id
+
+        TagNode x ->
+            x.id
+
+        LinkNode x ->
+            x.from ++ "->" ++ x.to
+
+
+type alias Nodes =
+    Dict Id Node
+
+
+type alias Index =
+    Int
+
+
+type alias ParsedText =
+    ( Index, String, TextType )
+
+
+type TextType
+    = TypeText
+    | TypeTag
+    | NewLine
+
+
+type Email
+    = Verified String
+    | NotVerified String
+
+
+type Group
+    = ReadOnlyUser
+    | User_
+    | Admin
+    | SuperAdmin
+
+
+groupDecoder : Decoder Group
+groupDecoder =
+    string
+        |> JD.andThen
+            (\grp ->
+                case String.toLower grp of
+                    "readonlyuser" ->
+                        succeed ReadOnlyUser
+
+                    "user" ->
+                        succeed User_
+
+                    "admin" ->
+                        succeed Admin
+
+                    "superadmin" ->
+                        succeed SuperAdmin
+
+                    _ ->
+                        fail ("Could not decode Group. No group translates to string '" ++ grp ++ "'")
+            )
+
+
+type alias User =
+    { nickname : String
+    , givenName : String
+    , familyName : String
+    , email : Email
+    , groups : List Group
+    }
+
+
+userDecoder : Decoder User
+userDecoder =
+    JD.map2
+        (\email verified ->
+            if verified == "true" then
+                Verified email
+
+            else
+                NotVerified email
+        )
+        (field "Email" string)
+        (field "EmailVerified" string)
+        |> JD.andThen
+            (\email ->
+                succeed User
+                    |> required "Nickname" string
+                    |> required "GivenName" string
+                    |> required "FamilyName" string
+                    |> hardcoded email
+                    |> required "groups" (list groupDecoder)
+            )

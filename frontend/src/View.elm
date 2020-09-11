@@ -1,14 +1,14 @@
 module View exposing (view)
 
 import ColorTheme exposing (currentTheme)
-import Dict
+import Dict exposing (Dict)
 import Html exposing (Html, a, br, button, div, form, h1, i, input, li, p, span, ul)
 import Html.Attributes exposing (autofocus, class, href, id, placeholder, style, type_, value)
 import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import Maybe.Extra
-import Model exposing (Model, Msg(..), Node)
+import Model exposing (Article, Model, Msg(..), Node)
 import Path.LowLevel as LL
 import Simulation
 import TypedSvg as Svg exposing (circle, g, line, svg, text_, title)
@@ -42,7 +42,7 @@ view model =
                 Model.Nodes nodeData ->
                     ( viewSelectedNode nodeData.selectedNode, drawGraph model.simulation nodeData )
 
-                Model.DragNode { drag, nodeData } ->
+                Model.DragNode { nodeData } ->
                     ( viewSelectedNode nodeData.selectedNode, drawGraph model.simulation nodeData )
     in
     div
@@ -159,7 +159,7 @@ getViewModeIcon viewMode =
 
 
 viewSelectedNode : Model.Node -> Html Msg
-viewSelectedNode node =
+viewSelectedNode selectedNode_ =
     div
         [ style "background-color" currentTheme.nodeBackground
         , style "border-radius" "5px"
@@ -169,7 +169,7 @@ viewSelectedNode node =
         , style "width" "25%"
         , style "min-height" "100%"
         ]
-        [ selectedNode node ]
+        [ selectedNode selectedNode_ ]
 
 
 renderTag : (List (Attribute Msg) -> List (Html Msg) -> Html Msg) -> String -> Html Msg
@@ -187,8 +187,11 @@ renderTag htmlTag tagText =
 
 
 selectedNode : Node -> Html Msg
-selectedNode node =
-    case node of
+selectedNode selectedNode_ =
+    case selectedNode_ of
+        Model.LinkNode _ ->
+            text ""
+
         Model.TagNode n ->
             div []
                 [ span [ style "font-weight" "bold", style "color" currentTheme.text.text ] [ text "Tag:" ]
@@ -200,8 +203,7 @@ selectedNode node =
             let
                 tags =
                     article.tags
-                        |> List.map (\x -> x.tag)
-                        |> List.sort
+                        |> List.map .tag
 
                 parsedText =
                     article.parsedText
@@ -349,11 +351,58 @@ outline: none;
         ]
 
 
-linkElement : Simulation.Edge -> Svg Msg
-linkElement edge =
+linkElement : Model.Nodes -> Simulation.Edge String -> Svg Msg
+linkElement nodes edge =
+    let
+        color =
+            edge.id
+                |> Maybe.Extra.unwrap
+                    Nothing
+                    (\x -> Dict.get x nodes)
+                |> Maybe.Extra.unwrap
+                    currentTheme.graph.link.background
+                    (\x ->
+                        case x of
+                            Model.ArticleNode _ ->
+                                nodes
+                                    |> Dict.filter
+                                        (\_ node ->
+                                            case node of
+                                                Model.LinkNode l ->
+                                                    Just l.from == edge.id || Just l.to == edge.id
+
+                                                Model.TagNode _ ->
+                                                    False
+
+                                                Model.ArticleNode _ ->
+                                                    False
+                                        )
+                                    |> Dict.values
+                                    |> List.head
+                                    |> Maybe.Extra.unwrap
+                                        Nothing
+                                        (\node ->
+                                            case node of
+                                                Model.LinkNode n ->
+                                                    n.color
+
+                                                _ ->
+                                                    Nothing
+                                        )
+                                    |> Maybe.Extra.unwrap
+                                        currentTheme.graph.link.background
+                                        identity
+
+                            Model.TagNode _ ->
+                                currentTheme.graph.link.background
+
+                            Model.LinkNode _ ->
+                                currentTheme.graph.link.background
+                    )
+    in
     line
-        [ strokeWidth 1
-        , stroke currentTheme.graph.link.background
+        [ strokeWidth 3
+        , stroke color
         , x1 edge.source.x
         , y1 edge.source.y
         , x2 edge.target.x
@@ -474,6 +523,9 @@ nodeElement nodeData simulationNode =
                 ( Model.TagNode x, y ) ->
                     x.id == y.id
 
+                ( Model.LinkNode _, _ ) ->
+                    False
+
         showMenu =
             selected && nodeData.showMenu
 
@@ -487,6 +539,9 @@ nodeElement nodeData simulationNode =
 
                             Model.ArticleNode y ->
                                 y.title
+
+                            Model.LinkNode _ ->
+                                "<LinkNode>"
                     )
 
         trimmedTitle =
@@ -533,6 +588,9 @@ nodeElement nodeData simulationNode =
                                 currentTheme.graph.node.selectedArticle
 
                             ( False, Model.ArticleNode _ ) ->
+                                currentTheme.graph.node.article
+
+                            ( _, Model.LinkNode _ ) ->
                                 currentTheme.graph.node.article
                     )
 
@@ -602,7 +660,7 @@ drawGraph simulation nodeData =
         edges : Svg Msg
         edges =
             simEdges
-                |> List.map linkElement
+                |> List.map (linkElement nodeData.nodes)
                 |> g [ SvgAttr.class [ "links" ] ]
 
         toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
@@ -639,6 +697,7 @@ drawGraph simulation nodeData =
 drawTimeLine : Model.TimeLineData -> Html Msg
 drawTimeLine { nodes } =
     let
+        articlesByDate : Dict String (List Article)
         articlesByDate =
             nodes
                 |> Dict.values
@@ -649,6 +708,9 @@ drawTimeLine { nodes } =
                                 Just a
 
                             Model.TagNode _ ->
+                                Nothing
+
+                            Model.LinkNode _ ->
                                 Nothing
                     )
                 |> Maybe.Extra.values
@@ -672,6 +734,7 @@ drawTimeLine { nodes } =
             tags
                 |> List.map (\x -> renderTag div x.tag)
 
+        listDays : List Model.Article -> List (Html Msg)
         listDays articles =
             articles
                 |> List.map
@@ -688,7 +751,7 @@ drawTimeLine { nodes } =
                                     , style "padding" "0.2em"
                                     ]
                                     [ text <| x.title ]
-                                    :: listTags x.tags
+                                    :: listTags (getArticleTags nodes x)
                                 )
                             ]
                     )
@@ -716,3 +779,48 @@ drawTimeLine { nodes } =
                     )
             )
         ]
+
+
+getArticleTags : Model.Nodes -> Model.Article -> List Model.Tag
+getArticleTags nodes article =
+    nodes
+        |> Dict.filter
+            (\_ n ->
+                case n of
+                    Model.ArticleNode _ ->
+                        False
+
+                    Model.TagNode _ ->
+                        False
+
+                    Model.LinkNode l ->
+                        l.from == article.id
+            )
+        |> Dict.values
+        |> List.map
+            (\n ->
+                case n of
+                    Model.ArticleNode _ ->
+                        Nothing
+
+                    Model.TagNode _ ->
+                        Nothing
+
+                    Model.LinkNode l ->
+                        Dict.get l.to nodes
+            )
+        |> Maybe.Extra.values
+        |> List.foldl
+            (\n acc ->
+                case n of
+                    Model.TagNode t ->
+                        t :: acc
+
+                    Model.ArticleNode _ ->
+                        acc
+
+                    Model.LinkNode _ ->
+                        acc
+            )
+            []
+        |> List.sortBy (\t -> t.tag)

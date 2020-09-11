@@ -1,23 +1,29 @@
 'use strict';
 
-const getAllTags = driver => runQuery => async () => {
+const
+	{ getDriver, runQuery } = require('../../util/neoHelper'),
+	shortId = require('shortid'),
+	Case = require('case'),
+	moment = require('moment');
+
+const getAllTags = driver => runQuery_ => async () => {
 	const session = driver.session();
-	const query = runQuery(session);
+	const query = runQuery_(session);
 	const findAllTagsQuery = `MATCH (t:Tag) RETURN t.tag as tag ORDER BY tag`;
-	const result = (await query(findAllTagsQuery)({})).map(x => x.tag);
+	const result = (await query(findAllTagsQuery)({}));
 	driver.close();
 
-	return result;
+	return result.map(x => x._fields[0]);
 };
 
-const getNewestArticleDate = driver => runQuery => async () => {
+const getNewestArticleDate = driver => runQuery_ => async () => {
 	const session = driver.session();
-	const query = runQuery(session);
+	const query = runQuery_(session);
 	const findLargestArticleDate = `MATCH (a:Article) RETURN MAX(a.date) as date`;
-	const result = (await query(findLargestArticleDate)({}));
+	const result = await query(findLargestArticleDate)({});
 	driver.close();
 
-	return result[0].date;
+	return result[0] != null ? result[0]._fields[0] : null;
 };
 
 const saveArticles = driver => async (articles) => {
@@ -56,12 +62,6 @@ const saveArticles = driver => async (articles) => {
 };
 
 const run = async (items) => {
-	const
-		{ getDriver, runQuery } = require('../../util/neoHelper'),
-		shortId = require('shortid'),
-		Case = require('case'),
-		moment = require('moment');
-
 	const [newestArticleDateStr, tags] = await Promise.all([
 		getNewestArticleDate(getDriver())(runQuery)(),
 		getAllTags(getDriver())(runQuery)()
@@ -133,7 +133,7 @@ async function localRun() {
 		const
 			{ readdirSync, readFileSync, unlinkSync: deleteFile } = require('fs'),
 			join = require('path').join,
-			dir = join(__dirname, '..', '.queue_msgs', 'galnet-article');
+			dir = join(__dirname, '..', '..', '..', '.queue_msgs', 'galnet-article');
 
 		const files = readdirSync(dir);
 		const file = files.length > 0 ? join(dir, files[0]) : null;
@@ -156,5 +156,4 @@ localRun().
 		console.error(err);
 		process.exit(1);
 	});
-
 */

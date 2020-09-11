@@ -64,7 +64,8 @@ subscriptions model =
                         []
 
                     else
-                        [ Browser.Events.onAnimationFrame Tick ]
+                        [ Browser.Events.onAnimationFrame Tick
+                        ]
 
                 Model.DragNode { drag, nodeData } ->
                     [ Browser.Events.onMouseMove (Decode.map (.clientPos >> DragAt) Mouse.eventDecoder)
@@ -77,10 +78,3 @@ subscriptions model =
             Browser.Events.onResize (\x y -> Model.ResizeWindow ( x, y ))
     in
     Sub.batch (resizeEvent :: events)
-
-
-type alias BuildGraphTemp a =
-    { idx : Int
-    , id : Id
-    , value : a
-    }

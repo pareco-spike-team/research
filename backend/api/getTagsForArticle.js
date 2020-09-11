@@ -1,7 +1,7 @@
 'use strict';
 
 const
-	mapToReturn = require('./helper/mapToReturn.js'),
+	mapper = require('../util/neoMapper.js'),
 	{ getDriver, runQuery } = require('../util/neoHelper.js');
 
 
@@ -10,13 +10,15 @@ async function getTagsForArticle(articleId, includeArticles) {
 	try {
 		const s = driver.session();
 		const query =
-			`MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId} WITH tag
-		MATCH (tag)<-[:Tag]-(article:Article) WHERE article.id = {articleId} OR article.id IN {includeArticles} RETURN tag, article`;
+			`MATCH (article:Article)-[:Tag]->(tag:Tag) WHERE article.id = {articleId}
+			WITH tag
+			MATCH (tag)<-[links:Tag]-(article:Article) WHERE article.id = {articleId} OR article.id IN {includeArticles}
+			RETURN tag, article, links`;
 		const toInclude = includeArticles ? includeArticles.split(',').map(x => x.trim()) : [];
 
 		const result = await runQuery(s)(query)({ articleId: articleId, includeArticles: toInclude });
-		const mapResult = mapToReturn(new Map(), result);
-		return [...mapResult.values()];
+		const mapResult = mapper().map(result).toResult();
+		return mapResult;
 	} finally {
 		driver.close();
 	}

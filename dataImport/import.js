@@ -1,16 +1,11 @@
 'use strict';
 
 const
-	neo = require('../backend/util/neoHelper.js'),
+	{ getDriver } = require('../backend/util/neoHelper.js'),
 	markdownFileToParse = `${__dirname}/../data/Galnet_Revamp_no_HTML.txt`,
 	shortId = require('shortid'),
 	Case = require('case'),
 	markdownParse = require('./markdownParser.js');
-
-
-function getDriver() {
-	return neo.getDriver();
-}
 
 const fixTagCasing = t =>
 	t.tag.
@@ -24,8 +19,8 @@ async function saveTags(articles) {
 	const tags = new Set();
 	articles.forEach(a => {
 		a.tags.forEach(t => {
-			const s = fixTagCasing(t);
-			tags.add(s);
+			const tag_ = fixTagCasing(t);
+			tags.add(tag_);
 			t.subTags.forEach(s => tags.add(fixTagCasing(s)));
 		});
 	});
@@ -63,7 +58,6 @@ async function saveTags(articles) {
 				} catch (err) {
 					console.error(err);
 				}
-
 			}
 		}
 	}

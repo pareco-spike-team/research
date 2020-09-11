@@ -9,7 +9,7 @@ module Command exposing
 import Dict
 import Http
 import HttpBuilder exposing (request, withExpect, withHeader)
-import Json.Decode as Decode exposing (Decoder, field, string)
+import Json.Decode as JD exposing (Decoder)
 import Maybe.Extra
 import Model exposing (Article, Model, Msg(..), Node(..), Nodes, Tag, TextType(..))
 import Url.Builder as UrlBuilder
@@ -29,7 +29,7 @@ getAllTags =
     let
         allTagsDecoder : Decoder (List Tag)
         allTagsDecoder =
-            Decode.list (field "tag" Model.tagDecoder)
+            JD.list Model.tagDecoder
     in
     HttpBuilder.get "/api/tags"
         |> withHeader "Content-Type" "application/json"
@@ -77,7 +77,7 @@ search model =
         |> request
 
 
-getTagsForArticle : Model -> Nodes -> Article -> (Result Http.Error (List Article) -> Msg) -> Cmd Msg
+getTagsForArticle : Model -> Nodes -> Article -> (Result Http.Error (List Node) -> Msg) -> Cmd Msg
 getTagsForArticle model nodes article msg =
     let
         include =
@@ -90,6 +90,9 @@ getTagsForArticle model nodes article msg =
 
                             ArticleNode a ->
                                 Just a.id
+
+                            LinkNode _ ->
+                                Nothing
                     )
                 |> Maybe.Extra.values
     in

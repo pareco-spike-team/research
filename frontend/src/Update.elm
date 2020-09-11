@@ -53,8 +53,8 @@ update msg model =
             in
             ( model, Cmd.none )
 
-        ArticleSearchResult (Ok articles) ->
-            articleSearchResult model articles
+        ArticleSearchResult (Ok nodes) ->
+            articleSearchResult model nodes
 
         ArticleSearchResult (Err e) ->
             let
@@ -63,35 +63,108 @@ update msg model =
             in
             ( model, Cmd.none )
 
-        ArticleSelectedResult (Ok articles) ->
+        ArticleSelectedResult (Ok nodes) ->
             let
-                doUpdate nodeData =
-                    case nodeData.selectedNode of
+                updateSelected selected =
+                    case selected of
                         ArticleNode article ->
-                            articles
-                                |> List.filter (\x -> x.id == article.id)
-                                |> List.foldl
-                                    (\x acc -> { x | tags = x.tags ++ acc.tags })
-                                    article
-                                |> (\x -> { x | tags = List.Extra.uniqueBy (\t -> t.id) x.tags })
-                                |> ArticleNode
-                                |> (\x -> { nodeData | selectedNode = x })
+                            let
+                                tags =
+                                    nodes
+                                        |> List.map
+                                            (\x ->
+                                                case x of
+                                                    TagNode t ->
+                                                        Just t
 
-                        TagNode x ->
-                            nodeData
+                                                    ArticleNode _ ->
+                                                        Nothing
+
+                                                    LinkNode _ ->
+                                                        Nothing
+                                            )
+                                        |> Maybe.Extra.values
+
+                                addTags node =
+                                    case node of
+                                        ArticleNode x ->
+                                            ArticleNode { x | tags = tags }
+
+                                        TagNode _ ->
+                                            node
+
+                                        LinkNode _ ->
+                                            node
+                            in
+                            nodes
+                                |> List.Extra.find
+                                    (\node_ ->
+                                        case node_ of
+                                            ArticleNode x ->
+                                                x.id == article.id
+
+                                            TagNode _ ->
+                                                False
+
+                                            LinkNode _ ->
+                                                False
+                                    )
+                                |> Maybe.Extra.unwrap
+                                    selected
+                                    addTags
+
+                        TagNode _ ->
+                            selected
+
+                        LinkNode _ ->
+                            selected
             in
             case model.viewState of
                 Model.Empty ->
                     ( model, Cmd.none )
 
-                Model.TimeLine x ->
-                    ( { model | viewState = Model.TimeLine (doUpdate x) }, Cmd.none )
+                Model.TimeLine timeLine ->
+                    ( { model
+                        | viewState =
+                            Model.TimeLine
+                                { timeLine
+                                    | selectedNode = updateSelected timeLine.selectedNode
+                                }
+                      }
+                    , Cmd.none
+                    )
 
-                Model.Nodes x ->
-                    ( { model | viewState = Model.Nodes (doUpdate x) }, Cmd.none )
+                Model.Nodes nodes_ ->
+                    ( { model
+                        | viewState =
+                            Model.Nodes
+                                { nodes_
+                                    | selectedNode = updateSelected nodes_.selectedNode
+                                }
+                      }
+                    , Cmd.none
+                    )
 
-                Model.DragNode { drag, nodeData } ->
-                    ( { model | viewState = Model.DragNode { drag = drag, nodeData = doUpdate nodeData } }, Cmd.none )
+                Model.DragNode dragNode ->
+                    let
+                        nodeData =
+                            dragNode.nodeData
+
+                        selected =
+                            updateSelected nodeData.selectedNode
+                    in
+                    ( { model
+                        | viewState =
+                            Model.DragNode
+                                { dragNode
+                                    | nodeData =
+                                        { nodeData
+                                            | selectedNode = selected
+                                        }
+                                }
+                      }
+                    , Cmd.none
+                    )
 
         ArticleSelectedResult (Err e) ->
             let
@@ -123,6 +196,9 @@ update msg model =
                         Nothing ->
                             ( model, Cmd.none )
 
+                        Just (LinkNode _) ->
+                            ( model, Cmd.none )
+
                         Just (TagNode x) ->
                             ( model, Command.getArticlesWithTag model x )
 
@@ -150,16 +226,16 @@ update msg model =
                 Model.Empty ->
                     ( model, Cmd.none )
 
-                Model.TimeLine nodeData ->
+                Model.TimeLine _ ->
                     ( model, Cmd.none )
 
                 Model.Nodes nodeData ->
                     ( { model | viewState = Model.Nodes { nodeData | showMenu = not nodeData.showMenu } }, Cmd.none )
 
-                Model.DragNode { nodeData } ->
+                Model.DragNode _ ->
                     ( model, Cmd.none )
 
-        Tick t ->
+        Tick _ ->
             case model.viewState of
                 Model.Empty ->
                     ( model, Cmd.none )
@@ -167,7 +243,7 @@ update msg model =
                 Model.TimeLine _ ->
                     ( model, Cmd.none )
 
-                Model.Nodes nodeData ->
+                Model.Nodes _ ->
                     ( { model | simulation = Simulation.tick model.simulation }
                     , Cmd.none
                     )
@@ -234,10 +310,10 @@ update msg model =
                 Model.Empty ->
                     ( model, Cmd.none )
 
-                Model.TimeLine x ->
+                Model.TimeLine _ ->
                     ( model, Cmd.none )
 
-                Model.Nodes x ->
+                Model.Nodes _ ->
                     ( model, Cmd.none )
 
                 Model.DragNode x ->
@@ -270,7 +346,7 @@ update msg model =
                 Model.Nodes { nodes, selectedNode } ->
                     ( { model | viewState = Model.TimeLine { nodes = nodes, selectedNode = selectedNode } }, Cmd.none )
 
-                Model.DragNode { drag, nodeData } ->
+                Model.DragNode { nodeData } ->
                     ( { model | viewState = Model.TimeLine { nodes = nodeData.nodes, selectedNode = nodeData.selectedNode } }, Cmd.none )
 
         SwitchToNodesView ->
@@ -281,7 +357,7 @@ update msg model =
                 Model.TimeLine { nodes, selectedNode } ->
                     ( { model | viewState = Model.Nodes { nodes = nodes, selectedNode = selectedNode, showMenu = False } }, Cmd.none )
 
-                Model.Nodes x ->
+                Model.Nodes _ ->
                     ( model, Cmd.none )
 
                 Model.DragNode x ->
@@ -294,7 +370,7 @@ update msg model =
 updateMenuMsg : Model -> Model.MenuMsg -> ( Model, Cmd Msg )
 updateMenuMsg model msg =
     case msg of
-        Model.Unlock id ->
+        Model.Unlock _ ->
             let
                 newSim =
                     Simulation.unlockAll model.simulation
@@ -328,10 +404,10 @@ updateMenuMsg model msg =
         Model.RemoveConnected id ->
             removeConnected model id
 
-        Model.RemoveNotConnected id ->
+        Model.RemoveNotConnected _ ->
             ( model, Cmd.none )
 
-        Model.ConnectTo id ->
+        Model.ConnectTo _ ->
             ( model, Cmd.none )
 
 
@@ -341,26 +417,34 @@ removeConnected model id =
         Model.Nodes nodeData ->
             let
                 nodesToRemove =
-                    Dict.get id nodeData.nodes
-                        |> Maybe.Extra.unwrap []
-                            (\node ->
-                                case node of
-                                    ArticleNode article ->
-                                        id :: List.map (\x -> x.id) article.tags
+                    nodeData.nodes
+                        |> Dict.toList
+                        |> List.map
+                            (\( key, value ) ->
+                                case value of
+                                    ArticleNode x ->
+                                        if x.id == id then
+                                            Just [ x.id ]
 
-                                    TagNode _ ->
-                                        nodeData.nodes
-                                            |> Dict.filter
-                                                (\key value ->
-                                                    case value of
-                                                        ArticleNode article ->
-                                                            article.id == id || List.any (\x -> x.id == id) article.tags
+                                        else
+                                            Nothing
 
-                                                        TagNode tag ->
-                                                            tag.id == id
-                                                )
-                                            |> Dict.keys
+                                    TagNode x ->
+                                        if x.id == id then
+                                            Just [ x.id ]
+
+                                        else
+                                            Nothing
+
+                                    LinkNode x ->
+                                        if x.from == id || x.to == id then
+                                            Just [ key, x.from, x.to ]
+
+                                        else
+                                            Nothing
                             )
+                        |> Maybe.Extra.values
+                        |> List.concat
 
                 newNodes =
                     nodesToRemove
@@ -407,15 +491,17 @@ removeNode id state =
             let
                 nodes =
                     data.nodes
-                        |> Dict.filter (\key _ -> key /= id)
-                        |> Dict.map
-                            (\_ v ->
-                                case v of
-                                    TagNode t ->
-                                        v
+                        |> Dict.filter
+                            (\key value ->
+                                case value of
+                                    ArticleNode _ ->
+                                        key /= id
 
-                                    ArticleNode a ->
-                                        ArticleNode { a | tags = a.tags |> List.filter (\x -> x.id /= id) }
+                                    TagNode _ ->
+                                        key /= id
+
+                                    LinkNode x ->
+                                        x.from /= id && x.to /= id
                             )
 
                 selectedNode =
@@ -448,7 +534,10 @@ updateShowNode model id =
                 ArticleNode x ->
                     Command.getTagsForArticle model Dict.empty x ArticleSelectedResult
 
-                TagNode x ->
+                TagNode _ ->
+                    Cmd.none
+
+                LinkNode _ ->
                     Cmd.none
 
         doUpdate : { a | nodes : Model.Nodes, selectedNode : Model.Node } -> ({ a | nodes : Model.Nodes, selectedNode : Model.Node } -> Model.ViewState) -> ( Model, Cmd Msg )
@@ -475,8 +564,60 @@ updateShowNode model id =
             doUpdate nodeData (\x -> Model.DragNode { drag = drag, nodeData = x })
 
 
-articleSearchResult : Model -> List Article -> ( Model, Cmd Msg )
-articleSearchResult model articlesFound =
+articleSearchResult : Model -> List Node -> ( Model, Cmd Msg )
+articleSearchResult model nodesFound =
+    let
+        updatedNodes_ =
+            updateNodes model nodesFound
+
+        graph =
+            updatedNodes_
+                |> buildGraph
+                |> List.foldl
+                    (\node sim -> Simulation.add node sim)
+                    model.simulation
+
+        showDefault =
+            nodesFound
+                |> List.head
+                |> Maybe.Extra.unwrap (TagNode { id = "dummy", tag = "dummy" }) identity
+    in
+    case model.viewState of
+        Model.Empty ->
+            updateShowNode
+                { model
+                    | simulation = graph
+                    , viewState =
+                        Model.Nodes
+                            { nodes = updatedNodes_
+                            , selectedNode = showDefault
+                            , showMenu = False
+                            }
+                }
+                (Model.getNodeId showDefault)
+
+        Model.TimeLine nodeData ->
+            updateShowNode
+                { model | simulation = graph, viewState = Model.TimeLine { nodes = updatedNodes_, selectedNode = nodeData.selectedNode } }
+                (Model.getNodeId nodeData.selectedNode)
+
+        Model.Nodes nodeData ->
+            updateShowNode
+                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes_, selectedNode = nodeData.selectedNode, showMenu = False } }
+                (Model.getNodeId nodeData.selectedNode)
+
+        Model.DragNode { drag, nodeData } ->
+            let
+                newNodeData =
+                    { nodeData | nodes = updatedNodes_ }
+            in
+            updateShowNode
+                { model | simulation = graph, viewState = Model.DragNode { drag = drag, nodeData = newNodeData } }
+                (Model.getNodeId nodeData.selectedNode)
+
+
+updateNodes : Model -> List Node -> Nodes
+updateNodes model nodesFound =
     let
         nodes =
             case model.viewState of
@@ -491,119 +632,75 @@ articleSearchResult model articlesFound =
 
                 Model.DragNode { nodeData } ->
                     nodeData.nodes
-
-        newTags : List Tag
-        newTags =
-            articlesFound
-                |> List.foldl (\a b -> a.tags ++ b) []
-                |> List.foldl (\t dict -> Dict.insert t.id t dict) Dict.empty
-                |> Dict.values
-                |> List.filter (\x -> not <| Dict.member x.id nodes)
-
-        nodesWithNewTags : Nodes
-        nodesWithNewTags =
-            List.foldl (\tag dict -> Dict.insert tag.id (TagNode tag) dict) nodes newTags
-
-        getTagFromNode : Node -> Maybe Tag
-        getTagFromNode n =
-            case n of
-                TagNode t ->
-                    Just t
-
-                ArticleNode _ ->
-                    Nothing
-
-        updateTags tags =
-            tags
-                |> List.map (\t -> Dict.get t.id nodesWithNewTags)
-                |> Maybe.Extra.values
-                |> List.map (\node -> getTagFromNode node)
-                |> Maybe.Extra.values
-
-        newArticles =
-            articlesFound
-                |> List.filter (\x -> not <| Dict.member x.id nodes)
-                |> List.foldl (\x dict -> Dict.insert x.id x dict) Dict.empty
-                |> Dict.values
-
-        nodesWithNewArticles : Nodes
-        nodesWithNewArticles =
-            List.foldl (\article dict -> Dict.insert article.id (ArticleNode article) dict) nodesWithNewTags newArticles
-
-        updatedNodes : Nodes
-        updatedNodes =
-            Dict.values nodesWithNewArticles
-                |> List.map
-                    (\node ->
-                        case node of
-                            TagNode n ->
-                                ( n.id, TagNode n )
-
-                            ArticleNode a ->
-                                let
-                                    tags =
-                                        (articlesFound
-                                            |> List.filter (\x -> x.id == a.id)
-                                            |> List.map (\x -> x.tags)
-                                            |> List.foldl (\xs ys -> xs ++ ys) a.tags
-                                        )
-                                            |> List.Extra.uniqueBy (\x -> x.id)
-                                in
-                                ( a.id, ArticleNode { a | tags = updateTags tags } )
-                    )
-                |> Dict.fromList
-
-        link { from, to } =
-            ( from, to )
-
-        graph =
-            updatedNodes
-                |> buildGraph
-                |> List.foldl
-                    (\node sim -> Simulation.add node sim)
-                    model.simulation
-
-        showDefault =
-            newTags
-                |> List.head
-                |> Maybe.Extra.unwrap { id = "dummy", tag = "dummy" } identity
     in
-    case model.viewState of
-        Model.Empty ->
-            updateShowNode
-                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = TagNode showDefault, showMenu = False } }
-                showDefault.id
+    nodesFound
+        |> List.foldl
+            (\node dict ->
+                let
+                    key =
+                        case node of
+                            ArticleNode x ->
+                                x.id
 
-        Model.TimeLine nodeData ->
-            updateShowNode
-                { model | simulation = graph, viewState = Model.TimeLine { nodes = updatedNodes, selectedNode = nodeData.selectedNode } }
-                (Model.getNodeId nodeData.selectedNode)
+                            TagNode x ->
+                                x.id
 
-        Model.Nodes nodeData ->
-            updateShowNode
-                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes, selectedNode = nodeData.selectedNode, showMenu = False } }
-                (Model.getNodeId nodeData.selectedNode)
-
-        Model.DragNode { drag, nodeData } ->
-            let
-                newNodeData =
-                    { nodeData | nodes = updatedNodes }
-            in
-            updateShowNode
-                { model | simulation = graph, viewState = Model.DragNode { drag = drag, nodeData = newNodeData } }
-                (Model.getNodeId nodeData.selectedNode)
+                            LinkNode x ->
+                                x.from ++ "->" ++ x.to
+                in
+                Dict.insert key node dict
+            )
+            nodes
 
 
 buildGraph : Nodes -> List ( Model.Id, List Model.Id )
 buildGraph nodes =
-    nodes
-        |> Dict.toList
+    let
+        nodeList =
+            Dict.toList nodes
+
+        linkNodes =
+            nodeList
+                |> List.map
+                    (\( _, node ) ->
+                        case node of
+                            LinkNode x ->
+                                Just x
+
+                            ArticleNode _ ->
+                                Nothing
+
+                            TagNode _ ->
+                                Nothing
+                    )
+                |> Maybe.Extra.values
+    in
+    nodeList
         |> List.map
             (\( id, node ) ->
                 case node of
-                    TagNode x ->
-                        ( id, [] )
+                    TagNode _ ->
+                        Just ( id, [] )
 
                     ArticleNode x ->
-                        ( id, x.tags |> List.map (\t -> t.id) )
+                        let
+                            children =
+                                linkNodes
+                                    |> List.filter
+                                        (\l -> l.from == x.id || l.to == x.id)
+                                    |> List.map
+                                        (\l ->
+                                            if l.from == x.id then
+                                                Just l.to
+
+                                            else
+                                                Just l.from
+                                        )
+                                    |> Maybe.Extra.values
+                        in
+                        Just ( id, children )
+
+                    LinkNode _ ->
+                        Nothing
             )
+        |> Maybe.Extra.values

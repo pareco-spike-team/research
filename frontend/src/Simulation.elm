@@ -25,11 +25,6 @@ type VectorNode a
     = VectorNode a Vector
 
 
-nullVector : Vector
-nullVector =
-    { x = 0, y = 0, vx = 0, vy = 0, fixed = False }
-
-
 type alias Simulation a =
     { springLength : Float
     , springForce : Float
@@ -365,18 +360,22 @@ node id sim =
         |> Maybe.map (\(VectorNode _ x) -> { id = id, x = x.x, y = x.y })
 
 
-type alias Edge =
-    { source : { x : Float, y : Float }
-    , target : { x : Float, y : Float }
+type alias Point =
+    { x : Float
+    , y : Float
     }
 
 
-edges : Simulation comparable -> List Edge
+type alias Edge a =
+    { id : Maybe a
+    , source : Point
+    , target : Point
+    }
+
+
+edges : Simulation comparable -> List (Edge comparable)
 edges sim =
     let
-        updateDict a dict =
-            Dict.update a (\x -> Just <| Maybe.withDefault (Dict.get a sim.nodes) x) dict
-
         edgePairs =
             sim.graph
                 |> Dict.toList
@@ -400,10 +399,16 @@ edges sim =
             (\x ->
                 case x of
                     ( Just (VectorNode a v1), Just (VectorNode b v2) ) ->
-                        { source = { x = v1.x, y = v1.y }, target = { x = v2.x, y = v2.y } }
+                        { id = Just a
+                        , source = { x = v1.x, y = v1.y }
+                        , target = { x = v2.x, y = v2.y }
+                        }
 
                     ( _, _ ) ->
-                        { source = { x = 0.0, y = 0.0 }, target = { x = 0.0, y = 0.0 } }
+                        { id = Nothing
+                        , source = { x = 0.0, y = 0.0 }
+                        , target = { x = 0.0, y = 0.0 }
+                        }
             )
 
 

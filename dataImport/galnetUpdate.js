@@ -14,10 +14,10 @@ async function getAllTags() {
 	let session = driver.session();
 	const query = runQuery(session);
 	const findAllTagsQuery = `MATCH (t:Tag) RETURN t.tag as tag ORDER BY tag`;
-	const result = (await query(findAllTagsQuery)({})).map(x => x.tag);
+	const result = (await query(findAllTagsQuery)({}));
 	driver.close();
 
-	return result;
+	return result.map(x => x._fields[0]);
 }
 
 async function getNewestArticleDate() {
@@ -28,7 +28,8 @@ async function getNewestArticleDate() {
 	const result = (await query(findLargestArticleDate)({}));
 	driver.close();
 
-	return result[0].date || "2010-01-01";
+	const res = result[0] != null ? result[0]._fields[0] : null;
+	return res || "2010-01-01";
 }
 
 async function saveArticles(articles) {
