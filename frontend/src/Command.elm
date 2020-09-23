@@ -110,6 +110,10 @@ getTagsForArticle model nodes article msg =
         |> request
 
 
+
+--|> withQueryParams [ ( "includeArticles", String.join "," include ) ]
+
+
 setColorOnLink : Model -> Link -> (Result Http.Error (List Node) -> Msg) -> Cmd Msg
 setColorOnLink model link msg =
     let

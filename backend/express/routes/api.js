@@ -6,8 +6,8 @@ const
 	searchArticles = require('../../api/searchArticles.js'),
 	getTagsForArticle = require('../../api/getTagsForArticle.js'),
 	setColorOnLink = require('../../api/setColorOnLink.js'),
-	removeColorOnLink = require('../../api/removeColorOnLink.js');
-
+	removeColorOnLink = require('../../api/removeColorOnLink.js'),
+	createTag = require('../../api/createTag.js');
 
 
 const onError = (res) => err => {
@@ -80,7 +80,8 @@ const api = {
 
 	getUser: getUser,
 	setColor: setColor,
-	removeColor: removeColor
+	removeColor: removeColor,
+	createTag: (req, res) => get(res, () => createTag(req.params.tagName)),
 };
 
 module.exports = () => {
@@ -94,6 +95,7 @@ module.exports = () => {
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
 	router.post('/api/articles/:articleId/color', api.setColor);
 	router.delete('/api/articles/:articleId/color', api.removeColor);
+	router.get('/api/tags/create', api.createTag);
 
 	router.get('/api/user', api.getUser);
 
