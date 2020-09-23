@@ -87,6 +87,10 @@ type alias SearchFilter =
     }
 
 
+type alias createTag =
+    { tagName : String
+    }
+
 type alias NodeData =
     { nodes : Nodes
     , selectedNode : Node

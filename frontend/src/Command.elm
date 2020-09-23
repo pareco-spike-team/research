@@ -102,7 +102,23 @@ getTagsForArticle model nodes article msg =
         |> withExpect (Http.expectJson msg (Model.searchResultDecoder model))
         -- |> withTimeout (10 * Time.second)
         |> request
-
-
-
+        
 --|> withQueryParams [ ( "includeArticles", String.join "," include ) ]
+
+
+createTag : Model -> Cmd Msg
+createTag =
+    let
+        tagName =
+            if model.createTag.tagName == "" then
+                Nothing
+
+            else
+                Just ( "tagName", model.createTag.tagName )
+    in
+    HttpBuilder.get "/api/tags/create"
+        |> withQueryParams [ ( "tagName", tagName ) ]
+        -- |> withHeader "Content-Type" "application/json"
+        -- |> withExpect (Http.expectString GotText)
+        -- |> withTimeout (10 * Time.second)
+        |> request

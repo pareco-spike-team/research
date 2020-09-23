@@ -5,6 +5,7 @@ const
 	getArticlesWithTag = require('../../api/getArticlesWithTag.js'),
 	searchArticles = require('../../api/searchArticles.js'),
 	getTagsForArticle = require('../../api/getTagsForArticle.js');
+	createTag = require('../../api/createTag.js');
 
 
 const onError = (res) => err => {
@@ -47,6 +48,8 @@ const api = {
 	searchArticles: (req, res) => get(res, () => searchArticles(req.query.tagFilter, req.query.articleFilter)),
 	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles)),
 
+	createTag: (req, res) => get(res, () => createTag(req.params.tagName)),
+
 	getUser: getUser
 };
 
@@ -59,6 +62,7 @@ module.exports = () => {
 	router.get('/api/tags/:tagId/articles', api.getArticlesWithTag);
 	router.get('/api/articles', api.searchArticles);
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
+	router.get('/api/tags/create', api.createTag);
 
 	router.get('/api/user', api.getUser);
 
