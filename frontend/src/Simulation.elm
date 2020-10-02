@@ -360,16 +360,16 @@ node id sim =
         |> Maybe.map (\(VectorNode _ x) -> { id = id, x = x.x, y = x.y })
 
 
-type alias Point =
-    { x : Float
+type alias EdgeNode a =
+    { id : a
+    , x : Float
     , y : Float
     }
 
 
 type alias Edge a =
-    { id : Maybe a
-    , source : Point
-    , target : Point
+    { source : EdgeNode a
+    , target : EdgeNode a
     }
 
 
@@ -399,17 +399,15 @@ edges sim =
             (\x ->
                 case x of
                     ( Just (VectorNode a v1), Just (VectorNode b v2) ) ->
-                        { id = Just a
-                        , source = { x = v1.x, y = v1.y }
-                        , target = { x = v2.x, y = v2.y }
-                        }
+                        Just
+                            { source = { id = a, x = v1.x, y = v1.y }
+                            , target = { id = b, x = v2.x, y = v2.y }
+                            }
 
                     ( _, _ ) ->
-                        { id = Nothing
-                        , source = { x = 0.0, y = 0.0 }
-                        , target = { x = 0.0, y = 0.0 }
-                        }
+                        Nothing
             )
+        |> Maybe.Extra.values
 
 
 lockPosition : comparable -> Simulation comparable -> Simulation comparable

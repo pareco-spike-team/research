@@ -4,7 +4,8 @@ import Color exposing (Color)
 
 
 type alias GraphNodeColor =
-    { fillColor : Color.Color
+    { id : String
+    , fillColor : Color.Color
     , strokeColor : Color.Color
     , textColor : Color.Color
     }
@@ -60,27 +61,32 @@ lightNeoTheme =
             }
         , node =
             { tag =
-                { fillColor = Color.green
+                { id = "tag"
+                , fillColor = Color.green
                 , strokeColor = Color.darkGreen
                 , textColor = Color.black
                 }
             , selectedTag =
-                { fillColor = Color.green
+                { id = "tag_selected"
+                , fillColor = Color.green
                 , strokeColor = Color.darkGreen
                 , textColor = Color.black
                 }
             , article =
-                { fillColor = Color.lightBlue
+                { id = "article"
+                , fillColor = Color.lightBlue
                 , strokeColor = Color.blue
                 , textColor = Color.black
                 }
             , selectedArticle =
-                { fillColor = Color.lightBlue
+                { id = "article_selected"
+                , fillColor = Color.lightBlue
                 , strokeColor = Color.blue
                 , textColor = Color.black
                 }
             , unknown =
-                { fillColor = Color.brown
+                { id = "unknown"
+                , fillColor = Color.brown
                 , strokeColor = Color.darkBrown
                 , textColor = Color.black
                 }
@@ -161,27 +167,32 @@ darkNeoTheme =
             }
         , node =
             { tag =
-                { fillColor = yellow1
+                { id = "tag_background"
+                , fillColor = yellow1
                 , strokeColor = yellow2
                 , textColor = brownish
                 }
             , selectedTag =
-                { fillColor = yellow1
+                { id = "tag_background_selected"
+                , fillColor = yellow1
                 , strokeColor = yellow3
                 , textColor = brownish
                 }
             , article =
-                { fillColor = green1
+                { id = "article_background"
+                , fillColor = green1
                 , strokeColor = green2
                 , textColor = brownish
                 }
             , selectedArticle =
-                { fillColor = green1
+                { id = "article_background_selected"
+                , fillColor = green1
                 , strokeColor = green3
                 , textColor = brownish
                 }
             , unknown =
-                { fillColor = purple1
+                { id = "unknown"
+                , fillColor = purple1
                 , strokeColor = purple2
                 , textColor = white
                 }

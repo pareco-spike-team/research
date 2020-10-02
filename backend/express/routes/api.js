@@ -4,7 +4,10 @@ const
 	searchByTag = require('../../api/searchByTag.js'),
 	getArticlesWithTag = require('../../api/getArticlesWithTag.js'),
 	searchArticles = require('../../api/searchArticles.js'),
-	getTagsForArticle = require('../../api/getTagsForArticle.js');
+	getTagsForArticle = require('../../api/getTagsForArticle.js'),
+	setColorOnLink = require('../../api/setColorOnLink.js'),
+	removeColorOnLink = require('../../api/removeColorOnLink.js');
+
 
 
 const onError = (res) => err => {
@@ -40,6 +43,34 @@ const getUser = async (req, res) => {
 	}
 };
 
+const setColor = async (req, res) => {
+	const username = req.session.user.username;
+	const color = req.body.color.map(x => Math.round(255 * x));
+	const from = req.body.from;
+	const to = req.body.to;
+
+	try {
+		const result = await setColorOnLink(username, from, to, color);
+		res.json(result);
+	} catch (err) {
+		onError(res)(err);
+	}
+};
+
+
+const removeColor = async (req, res) => {
+	const username = req.session.user.username;
+	const from = req.body.from;
+	const to = req.body.to;
+
+	try {
+		const result = await removeColorOnLink(username, from, to);
+		res.json(result);
+	} catch (err) {
+		onError(res)(err);
+	}
+};
+
 const api = {
 	searchByTag: (req, res) => get(res, () => searchByTag(req.query.filter)),
 	getArticlesWithTag: (req, res) => get(res, () => getArticlesWithTag(req.params.tagId)),
@@ -47,7 +78,9 @@ const api = {
 	searchArticles: (req, res) => get(res, () => searchArticles(req.query.tagFilter, req.query.articleFilter)),
 	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles)),
 
-	getUser: getUser
+	getUser: getUser,
+	setColor: setColor,
+	removeColor: removeColor
 };
 
 module.exports = () => {
@@ -59,6 +92,8 @@ module.exports = () => {
 	router.get('/api/tags/:tagId/articles', api.getArticlesWithTag);
 	router.get('/api/articles', api.searchArticles);
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
+	router.post('/api/articles/:articleId/color', api.setColor);
+	router.delete('/api/articles/:articleId/color', api.removeColor);
 
 	router.get('/api/user', api.getUser);
 

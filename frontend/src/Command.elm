@@ -3,15 +3,19 @@ module Command exposing
     , getArticlesWithTag
     , getTagsForArticle
     , getUser
+    , removeColorOnLink
     , search
+    , setColorOnLink
     )
 
+import Color
 import Dict
 import Http
-import HttpBuilder exposing (request, withExpect, withHeader)
+import HttpBuilder exposing (request, withExpect, withHeader, withJsonBody)
 import Json.Decode as JD exposing (Decoder)
+import Json.Encode as JE
 import Maybe.Extra
-import Model exposing (Article, Model, Msg(..), Node(..), Nodes, Tag, TextType(..))
+import Model exposing (Article, Link, Model, Msg(..), Node(..), Nodes, Tag, TextType(..))
 import Url.Builder as UrlBuilder
 
 
@@ -100,12 +104,49 @@ getTagsForArticle model nodes article msg =
         [ "api", "articles", article.id, "tags" ]
         [ UrlBuilder.string "includeArticles" (String.join "," include) ]
         |> HttpBuilder.get
-        --("/api/articles/" ++ article.id ++ "/tags")
         |> withHeader "Content-Type" "application/json"
         |> withExpect (Http.expectJson msg (Model.searchResultDecoder model))
         -- |> withTimeout (10 * Time.second)
         |> request
 
 
+setColorOnLink : Model -> Link -> (Result Http.Error (List Node) -> Msg) -> Cmd Msg
+setColorOnLink model link msg =
+    let
+        color : Color.Color -> List Float
+        color c =
+            c
+                |> Color.toRgba
+                |> (\{ red, green, blue } -> [ red, green, blue ])
 
---|> withQueryParams [ ( "includeArticles", String.join "," include ) ]
+        json =
+            JE.object <|
+                Maybe.Extra.unwrap
+                    []
+                    (\c ->
+                        [ ( "from", JE.string link.from )
+                        , ( "to", JE.string link.to )
+                        , ( "color", JE.list JE.float (color c) )
+                        ]
+                    )
+                    link.color
+    in
+    HttpBuilder.post ("/api/articles/" ++ link.from ++ "/color")
+        |> withJsonBody json
+        |> withExpect (Http.expectJson msg (Model.searchResultDecoder model))
+        |> request
+
+
+removeColorOnLink : Model -> Link -> (Result Http.Error (List Node) -> Msg) -> Cmd Msg
+removeColorOnLink model link msg =
+    let
+        json =
+            JE.object <|
+                [ ( "from", JE.string link.from )
+                , ( "to", JE.string link.to )
+                ]
+    in
+    HttpBuilder.delete ("/api/articles/" ++ link.from ++ "/color")
+        |> withJsonBody json
+        |> withExpect (Http.expectJson msg (Model.searchResultDecoder model))
+        |> request

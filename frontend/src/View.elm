@@ -2,13 +2,21 @@ module View exposing (view)
 
 import ColorTheme exposing (currentTheme)
 import Dict exposing (Dict)
-import Html exposing (Html, a, br, button, div, form, h1, i, input, li, p, span, ul)
+import Html exposing (Html, a, br, button, div, form, h1, i, input, li, menu, menuitem, p, span, ul)
 import Html.Attributes exposing (autofocus, class, href, id, placeholder, style, type_, value)
-import Html.Events exposing (onClick, onDoubleClick, onInput, onMouseDown, onSubmit)
+import Html.Events
+    exposing
+        ( onClick
+        , onDoubleClick
+        , onInput
+        , onMouseDown
+        , onSubmit
+        )
 import Html.Events.Extra.Mouse as Mouse
 import Http
+import Json.Decode as JD
 import Maybe.Extra
-import Model exposing (Article, Model, Msg(..), Node)
+import Model exposing (Article, Link, Model, Msg(..), Node(..), NodeViewState(..))
 import Path.LowLevel as LL
 import Simulation
 import TypedSvg as Svg exposing (circle, g, line, svg, text_, title)
@@ -18,6 +26,8 @@ import TypedSvg.Attributes.InPx as InPx exposing (cx, cy, r, strokeWidth, x1, x2
 import TypedSvg.Core exposing (Attribute, Svg, text)
 import TypedSvg.Types exposing (AnchorAlignment(..), Fill(..), FontWeight(..), LengthAdjust(..))
 import Util
+import Util.ColorPicker as ColorPicker
+import Util.CustomRightClickEvent exposing (onRightClick)
 import Util.LightBox as LightBox
 import Util.RemoteData exposing (RemoteData(..))
 
@@ -190,7 +200,11 @@ selectedNode : Node -> Html Msg
 selectedNode selectedNode_ =
     case selectedNode_ of
         Model.LinkNode _ ->
-            text ""
+            div []
+                [ span [ style "font-weight" "bold", style "color" currentTheme.text.text ] [ text "" ]
+                , p [] []
+                , span [ style "color" currentTheme.text.text ] [ text "this is a link between 2 nodes." ]
+                ]
 
         Model.TagNode n ->
             div []
@@ -351,64 +365,166 @@ outline: none;
         ]
 
 
-linkElement : Model.Nodes -> Simulation.Edge String -> Svg Msg
-linkElement nodes edge =
+linkElementMenu : Model.NodeData -> Simulation.Edge String -> Svg Msg
+linkElementMenu nodeData edge =
     let
-        color =
-            edge.id
+        nodeId =
+            Model.getNodeId nodeData.selectedNode
+
+        edgeId =
+            edge.source.id ++ "->" ++ edge.target.id
+
+        link : Maybe Link
+        link =
+            getLinkByEdge nodeData.nodes edge
+
+        selected =
+            nodeId == edgeId
+
+        ( centerX, centerY ) =
+            ( (edge.source.x + edge.target.x) / 2
+            , (edge.source.y + edge.target.y) / 2
+            )
+
+        menus =
+            case ( selected, nodeData.nodeViewState, link ) of
+                ( False, _, _ ) ->
+                    []
+
+                ( True, Default, _ ) ->
+                    []
+
+                ( True, ShowMenu, Nothing ) ->
+                    []
+
+                ( True, ShowColorPalette _, Nothing ) ->
+                    []
+
+                ( True, ShowMenu, Just lnk ) ->
+                    [ TypedSvg.Core.foreignObject
+                        [ InPx.x centerX
+                        , InPx.y centerY
+                        , InPx.width 400
+                        , InPx.height 300
+                        ]
+                        [ div
+                            [ class "html-in-svg link-menu" ]
+                            [ menu
+                                [ class "box-shadow link-menu-content" ]
+                                [ menuitem
+                                    [ class "link-menu-item"
+                                    , onClick ShowColourPalette
+                                    ]
+                                    [ text "Set Color" ]
+                                , menuitem
+                                    [ class "link-menu-item"
+                                    , onClick (RemoveLinkColor lnk)
+                                    ]
+                                    [ text "Remove Color" ]
+
+                                -- , div
+                                --     [ class "link-menu-item", onClick (RemoveLinkColor link) ]
+                                --     [ text "Add Note" ]
+                                ]
+                            ]
+                        ]
+                    ]
+
+                ( True, ShowColorPalette currentColor, Just lnk ) ->
+                    [ TypedSvg.Core.foreignObject
+                        [ InPx.x centerX
+                        , InPx.y centerY
+                        , InPx.width 400
+                        , InPx.height 300
+                        ]
+                        [ div
+                            [ class "html-in-svg" ]
+                            [ ColorPicker.view lnk currentColor
+                            ]
+                        ]
+                    ]
+    in
+    g [] menus
+
+
+getLinkByEdge : Model.Nodes -> Simulation.Edge String -> Maybe Link
+getLinkByEdge nodes edge =
+    let
+        edgeId =
+            edge.source.id ++ "->" ++ edge.target.id
+
+        node : Maybe Node
+        node =
+            Dict.get edgeId nodes
+
+        link : Maybe Link
+        link =
+            node
                 |> Maybe.Extra.unwrap
                     Nothing
-                    (\x -> Dict.get x nodes)
-                |> Maybe.Extra.unwrap
-                    currentTheme.graph.link.background
                     (\x ->
                         case x of
                             Model.ArticleNode _ ->
-                                nodes
-                                    |> Dict.filter
-                                        (\_ node ->
-                                            case node of
-                                                Model.LinkNode l ->
-                                                    Just l.from == edge.id || Just l.to == edge.id
-
-                                                Model.TagNode _ ->
-                                                    False
-
-                                                Model.ArticleNode _ ->
-                                                    False
-                                        )
-                                    |> Dict.values
-                                    |> List.head
-                                    |> Maybe.Extra.unwrap
-                                        Nothing
-                                        (\node ->
-                                            case node of
-                                                Model.LinkNode n ->
-                                                    n.color
-
-                                                _ ->
-                                                    Nothing
-                                        )
-                                    |> Maybe.Extra.unwrap
-                                        currentTheme.graph.link.background
-                                        identity
+                                Nothing
 
                             Model.TagNode _ ->
-                                currentTheme.graph.link.background
+                                Nothing
 
-                            Model.LinkNode _ ->
-                                currentTheme.graph.link.background
+                            Model.LinkNode l ->
+                                Just l
                     )
     in
-    line
-        [ strokeWidth 3
-        , stroke color
-        , x1 edge.source.x
-        , y1 edge.source.y
-        , x2 edge.target.x
-        , y2 edge.target.y
-        ]
-        []
+    link
+
+
+preventBrowserContextMenu =
+    Html.Events.preventDefaultOn "contextmenu" (JD.succeed ( NoOp, True ))
+
+
+linkElement : Model.NodeData -> Simulation.Edge String -> Svg Msg
+linkElement nodeData edge =
+    let
+        nodeId =
+            Model.getNodeId nodeData.selectedNode
+
+        edgeId =
+            edge.source.id ++ "->" ++ edge.target.id
+
+        selected =
+            nodeId == edgeId
+
+        link : Maybe Link
+        link =
+            getLinkByEdge nodeData.nodes edge
+
+        color =
+            Maybe.Extra.unwrap
+                currentTheme.graph.link.background
+                (\l ->
+                    Maybe.Extra.unwrap
+                        currentTheme.graph.link.background
+                        identity
+                        l.color
+                )
+                link
+    in
+    Maybe.Extra.unwrap
+        (text "")
+        (\lnk ->
+            line
+                [ strokeWidth 5
+                , stroke color
+                , x1 edge.source.x
+                , y1 edge.source.y
+                , x2 edge.target.x
+                , y2 edge.target.y
+                , onRightClick (ShowAndToggleMenu (Model.getNodeId (Model.LinkNode lnk)))
+                , preventBrowserContextMenu
+                , SvgAttr.id "link"
+                ]
+                []
+        )
+        link
 
 
 onMouseDown : { a | id : Model.Id } -> Attribute Msg
@@ -418,6 +534,10 @@ onMouseDown node =
 
 svgFontSize =
     16
+
+
+circleRadius =
+    2.3
 
 
 drawArc circleX circleY circleRadiusInEm angleWidth { startAngle, icon, onClickMsg, helpText } =
@@ -512,22 +632,11 @@ drawArc circleX circleY circleRadiusInEm angleWidth { startAngle, icon, onClickM
 nodeElement : Model.NodeData -> Simulation.Node Model.Id -> List (Html Msg)
 nodeElement nodeData simulationNode =
     let
-        circleRadius =
-            2.3
+        nodeId =
+            Model.getNodeId nodeData.selectedNode
 
         selected =
-            case ( nodeData.selectedNode, simulationNode ) of
-                ( Model.ArticleNode x, y ) ->
-                    x.id == y.id
-
-                ( Model.TagNode x, y ) ->
-                    x.id == y.id
-
-                ( Model.LinkNode _, _ ) ->
-                    False
-
-        showMenu =
-            selected && nodeData.showMenu
+            nodeId == simulationNode.id
 
         fullTitle =
             Dict.get simulationNode.id nodeData.nodes
@@ -573,7 +682,7 @@ nodeElement nodeData simulationNode =
             else
                 4.0
 
-        { fillColor, strokeColor, textColor } =
+        { fillColor, strokeColor, textColor, id } =
             Dict.get simulationNode.id nodeData.nodes
                 |> Maybe.Extra.unwrap currentTheme.graph.node.unknown
                     (\x ->
@@ -595,23 +704,30 @@ nodeElement nodeData simulationNode =
                     )
 
         menus =
-            -- lock/unlock, hide this, hide connected, hide not connected, hide allbut this, connectTo
-            -- hubspot,project-diagram,code-branch,
-            if showMenu then
-                [ { helpText = "Unlock nodes and re-layout", startAngle = 270, icon = "lock-open", onClickMsg = Model.MenuMsg <| Model.Unlock simulationNode.id }
-                , { helpText = "Remove this node", startAngle = 342, icon = "trash", onClickMsg = Model.MenuMsg <| Model.Remove simulationNode.id }
-                , { helpText = "Remove this and connected nodes", startAngle = 54, icon = "unlink", onClickMsg = Model.MenuMsg <| Model.RemoveConnected simulationNode.id }
-                , { helpText = "Not implemented yet", startAngle = 126, icon = "space-shuttle", onClickMsg = Model.MenuMsg <| Model.RemoveNotConnected simulationNode.id }
-                , { helpText = "Not implemented yet", startAngle = 198, icon = "space-shuttle", onClickMsg = Model.MenuMsg <| Model.ConnectTo simulationNode.id }
-                ]
-                    |> List.concatMap (drawArc simulationNode.x simulationNode.y circleRadius 70)
+            -- lock/unlock, hide this, hide connected, hide not connected, hide all but this, connectTo
+            -- icons to use? hubspot,project-diagram,code-branch,
+            case ( selected, nodeData.nodeViewState ) of
+                ( False, _ ) ->
+                    []
 
-            else
-                []
+                ( True, Default ) ->
+                    []
+
+                ( True, ShowMenu ) ->
+                    [ { helpText = "Unlock nodes and re-layout", startAngle = 270, icon = "lock-open", onClickMsg = Model.MenuMsg <| Model.Unlock simulationNode.id }
+                    , { helpText = "Remove this node", startAngle = 342, icon = "trash", onClickMsg = Model.MenuMsg <| Model.Remove simulationNode.id }
+                    , { helpText = "Remove this and connected nodes", startAngle = 54, icon = "unlink", onClickMsg = Model.MenuMsg <| Model.RemoveConnected simulationNode.id }
+                    , { helpText = "Not implemented yet", startAngle = 126, icon = "space-shuttle", onClickMsg = Model.MenuMsg <| Model.RemoveNotConnected simulationNode.id }
+                    , { helpText = "Not implemented yet", startAngle = 198, icon = "space-shuttle", onClickMsg = Model.MenuMsg <| Model.ConnectTo simulationNode.id }
+                    ]
+                        |> List.concatMap (drawArc simulationNode.x simulationNode.y circleRadius 70)
+
+                ( True, ShowColorPalette _ ) ->
+                    []
 
         clickEvent =
             if selected then
-                ToggleShowMenu
+                ToggleMenu
 
             else
                 ShowNode simulationNode.id
@@ -627,6 +743,7 @@ nodeElement nodeData simulationNode =
         , onMouseDown simulationNode
         , onClick clickEvent
         , onDoubleClick <| GetRelated simulationNode.id
+        , SvgAttr.id id
         ]
         [ title [] [ text fullTitle ]
         ]
@@ -654,14 +771,19 @@ nodeElement nodeData simulationNode =
 drawGraph : Simulation.Simulation String -> Model.NodeData -> Svg Msg
 drawGraph simulation nodeData =
     let
+        simEdges : List (Simulation.Edge String)
         simEdges =
             Simulation.edges simulation
 
         edges : Svg Msg
         edges =
             simEdges
-                |> List.map (linkElement nodeData.nodes)
+                |> List.map (linkElement nodeData)
                 |> g [ SvgAttr.class [ "links" ] ]
+
+        edgeMenu =
+            simEdges
+                |> List.map (linkElementMenu nodeData)
 
         toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
         toNodeElement x =
@@ -690,7 +812,7 @@ drawGraph simulation nodeData =
             [ SvgAttr.width width_
             , SvgAttr.height height_
             ]
-            (edges :: nodes)
+            (edges :: (nodes ++ edgeMenu))
         ]
 
 

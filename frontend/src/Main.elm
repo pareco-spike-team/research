@@ -64,13 +64,14 @@ subscriptions model =
                         []
 
                     else
-                        [ Browser.Events.onAnimationFrame Tick
+                        [--Browser.Events.onAnimationFrame Tick
                         ]
 
                 Model.DragNode { drag, nodeData } ->
                     [ Browser.Events.onMouseMove (Decode.map (.clientPos >> DragAt) Mouse.eventDecoder)
                     , Browser.Events.onMouseUp (Decode.map (.clientPos >> DragEnd) Mouse.eventDecoder)
-                    , Browser.Events.onAnimationFrame Tick
+
+                    --, Browser.Events.onAnimationFrame Tick
                     ]
 
         resizeEvent : Sub Msg

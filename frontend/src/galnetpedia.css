@@ -3,12 +3,47 @@ svg text {
 	font-family: FontAwesome;
 }
 
+html *
+{
+	color: #CCC;
+	font-family: Helvetica, Arial, sans-serif;
+}
+
 .icon {
 	width: 1em;
 	height: 1em;
 	fill: white;
 	cursor: pointer;
 }
+
+.html-in-svg {
+	background: rgba(1,1,1,0);
+	padding: 0 1rem 1rem 0;
+	float:left;
+}
+
+.button {
+	color: #222;
+	background: deepskyblue;
+	border: none;
+	margin-left: 0.5rem;
+	border-radius: 0.3rem;
+}
+.button:hover {
+	color: black;
+}
+
+.button-primary {
+	background-color: dodgerblue;
+}
+
+.box-shadow {
+	background-color: #181A1E;
+	padding: 0rem 0.2rem 0.2rem 0.2rem;
+	filter: drop-shadow(0.3rem 0.3rem 0.2rem black)
+}
+
+
 
 .article-menu-back {
 	fill: #3A3C40;
@@ -23,4 +58,88 @@ svg text {
 	cursor: pointer;
 	fill: #A9ABAD;
 	fill-opacity: 0.15;
+}
+
+.link-menu {
+}
+
+.link-menu-content {
+	display:flex;
+	flex-direction: column;
+}
+
+
+
+.link-menu-item {
+	margin-top: 0.2rem;
+}
+
+.link-menu-item:hover {
+	cursor: pointer;
+	color: #FFF;
+}
+
+.link-menu-filler {
+	flex-grow: 1;
+	background-color: brown;
+}
+
+
+.color-picker {
+    display: flex;
+	flex-direction: column;
+	padding: 0.5rem;
+}
+
+.color-picker-top {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.color-picker-colorbox {
+	margin-left:1rem;
+	margin-right:2rem;
+	min-width: 4rem;
+	min-height: 4rem;
+	margin: 1rem;
+	border-radius: 4rem;
+	justify-content: center;
+}
+
+.color-picker-colorbar {
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+	width: 256px;
+	height: 1rem;
+}
+
+.color-picker-bottom {
+	align-self: flex-end;
+}
+
+.color-picker-colorbar-red {
+	background-image: linear-gradient(to right, #000, #FF0000);
+}
+.color-picker-colorbar-green {
+	background-image: linear-gradient(to right, #000, #00FF00);
+}
+.color-picker-colorbar-blue {
+	background-image: linear-gradient(to right, #000, #0000FF);
+}
+
+
+#link {
+	cursor: pointer;
+	fill-opacity: 0.15;
+	stroke-width: 5px;
+}
+
+#link:hover {
+	cursor: pointer;
+	fill-opacity: 0.15;
+	stroke-width: 6px;
+}
+#dummy:hover {
+	stroke: tint(rgb(165, 171, 182), 20%)
 }

@@ -1,13 +1,16 @@
 module Model exposing
     ( Article
+    , ColorToChange(..)
     , Drag
     , Id
     , Index
+    , Link
     , MenuMsg(..)
     , Model
     , Msg(..)
     , Node(..)
     , NodeData
+    , NodeViewState(..)
     , Nodes
     , ParsedText
     , SearchFilter
@@ -25,7 +28,7 @@ module Model exposing
     )
 
 import Browser.Dom exposing (Viewport)
-import Color
+import Color exposing (Color)
 import Dict exposing (Dict)
 import Http
 import Json.Decode as JD exposing (Decoder, at, fail, field, int, list, string, succeed)
@@ -48,7 +51,8 @@ type Msg
     | ClearAll
     | GetRelated Id
     | ShowNode Id
-    | ToggleShowMenu
+    | ToggleMenu
+    | ShowAndToggleMenu Id
     | DragStart Id ( Float, Float )
     | DragAt ( Float, Float )
     | DragEnd ( Float, Float )
@@ -56,6 +60,11 @@ type Msg
     | SwitchToTimeLineView
     | SwitchToNodesView
     | MenuMsg MenuMsg
+    | ShowColourPalette
+    | ColourPaletteChangeColor Float ColorToChange
+    | SetLinkColor Link Color
+    | RemoveLinkColor Link
+    | NoOp
 
 
 type MenuMsg
@@ -92,8 +101,22 @@ type alias SearchFilter =
 type alias NodeData =
     { nodes : Nodes
     , selectedNode : Node
-    , showMenu : Bool
+    , nodeViewState : NodeViewState
+
+    -- , showMenu : Bool
     }
+
+
+type NodeViewState
+    = Default
+    | ShowMenu
+    | ShowColorPalette Color.Color
+
+
+type ColorToChange
+    = Red
+    | Green
+    | Blue
 
 
 type alias TimeLineData =

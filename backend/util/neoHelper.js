@@ -26,5 +26,6 @@ const runQuery = session => query => async args => {
 
 module.exports = {
 	getDriver: getDriver,
-	runQuery: runQuery
+	runQuery: runQuery,
+	int: neo4j.int
 };

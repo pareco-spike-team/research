@@ -1,17 +1,21 @@
 module Update exposing (update)
 
+import Color
 import Command
 import Dict
 import List.Extra
 import Maybe.Extra
-import Model exposing (Article, Drag, Model, Msg(..), Node(..), Nodes, Tag, TextType(..))
+import Model exposing (ColorToChange(..), Drag, Model, Msg(..), Node(..), NodeViewState(..), Nodes, TextType(..))
 import Simulation
 import Util.RemoteData as RemoteData exposing (RemoteData(..))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
+    case Debug.log "msg" msg of
+        NoOp ->
+            ( model, Cmd.none )
+
         GotViewport vp ->
             ( { model
                 | window = vp.scene
@@ -213,7 +217,7 @@ update msg model =
                     getRelated nodeData
 
                 Model.Nodes nodeData ->
-                    getRelated { nodeData | showMenu = False }
+                    getRelated { nodeData | nodeViewState = Default }
 
                 Model.DragNode { nodeData } ->
                     getRelated nodeData
@@ -221,7 +225,7 @@ update msg model =
         ShowNode id ->
             updateShowNode model id
 
-        ToggleShowMenu ->
+        ToggleMenu ->
             case model.viewState of
                 Model.Empty ->
                     ( model, Cmd.none )
@@ -230,10 +234,31 @@ update msg model =
                     ( model, Cmd.none )
 
                 Model.Nodes nodeData ->
-                    ( { model | viewState = Model.Nodes { nodeData | showMenu = not nodeData.showMenu } }, Cmd.none )
+                    let
+                        state =
+                            case nodeData.nodeViewState of
+                                Default ->
+                                    ShowMenu
+
+                                ShowMenu ->
+                                    Default
+
+                                ShowColorPalette _ ->
+                                    Default
+                    in
+                    ( { model | viewState = Model.Nodes { nodeData | nodeViewState = state } }, Cmd.none )
 
                 Model.DragNode _ ->
                     ( model, Cmd.none )
+
+        ShowAndToggleMenu id ->
+            updateShowNode model id
+                |> (\( model1, cmd1 ) ->
+                        update ToggleMenu model1
+                            |> (\( model2, cmd2 ) ->
+                                    ( model2, Cmd.batch [ cmd1, cmd2 ] )
+                               )
+                   )
 
         Tick _ ->
             case model.viewState of
@@ -263,7 +288,7 @@ update msg model =
                     ( model, Cmd.none )
 
                 Model.TimeLine { nodes, selectedNode } ->
-                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = { nodes = nodes, selectedNode = selectedNode, showMenu = False } } }, Cmd.none )
+                    ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = { nodes = nodes, selectedNode = selectedNode, nodeViewState = Default } } }, Cmd.none )
 
                 Model.Nodes x ->
                     ( { model
@@ -301,7 +326,7 @@ update msg model =
 
                         nodeData =
                             x.nodeData
-                                |> (\nodeData_ -> { nodeData_ | showMenu = False })
+                                |> (\nodeData_ -> { nodeData_ | nodeViewState = Default })
                     in
                     ( { model | viewState = Model.DragNode { drag = Drag xy xy x.drag.id, nodeData = nodeData }, simulation = sim }, Cmd.none )
 
@@ -355,7 +380,7 @@ update msg model =
                     ( model, Cmd.none )
 
                 Model.TimeLine { nodes, selectedNode } ->
-                    ( { model | viewState = Model.Nodes { nodes = nodes, selectedNode = selectedNode, showMenu = False } }, Cmd.none )
+                    ( { model | viewState = Model.Nodes { nodes = nodes, selectedNode = selectedNode, nodeViewState = Default } }, Cmd.none )
 
                 Model.Nodes _ ->
                     ( model, Cmd.none )
@@ -365,6 +390,105 @@ update msg model =
 
         MenuMsg menuMsg ->
             updateMenuMsg model menuMsg
+
+        ShowColourPalette ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine _ ->
+                    ( model, Cmd.none )
+
+                Model.Nodes nodeData ->
+                    ( { model
+                        | viewState =
+                            Model.Nodes { nodeData | nodeViewState = ShowColorPalette Color.black }
+                      }
+                    , Cmd.none
+                    )
+
+                Model.DragNode _ ->
+                    ( model, Cmd.none )
+
+        ColourPaletteChangeColor delta color ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine _ ->
+                    ( model, Cmd.none )
+
+                Model.Nodes nodeData ->
+                    case nodeData.nodeViewState of
+                        Default ->
+                            ( model, Cmd.none )
+
+                        ShowMenu ->
+                            ( model, Cmd.none )
+
+                        ShowColorPalette c ->
+                            let
+                                newColor =
+                                    case color of
+                                        Red ->
+                                            Color.toRgba c
+                                                |> (\c_ -> Color.fromRgba { c_ | red = delta / 255 })
+
+                                        Green ->
+                                            Color.toRgba c
+                                                |> (\c_ -> Color.fromRgba { c_ | green = delta / 255 })
+
+                                        Blue ->
+                                            Color.toRgba c
+                                                |> (\c_ -> Color.fromRgba { c_ | blue = delta / 255 })
+                            in
+                            ( { model
+                                | viewState =
+                                    Model.Nodes { nodeData | nodeViewState = ShowColorPalette newColor }
+                              }
+                            , Cmd.none
+                            )
+
+                Model.DragNode _ ->
+                    ( model, Cmd.none )
+
+        SetLinkColor link color ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine _ ->
+                    ( model, Cmd.none )
+
+                Model.DragNode _ ->
+                    ( model, Cmd.none )
+
+                Model.Nodes nodeData ->
+                    ( { model | viewState = Model.Nodes { nodeData | nodeViewState = Default } }
+                    , Command.setColorOnLink
+                        model
+                        { link | color = Just color }
+                        ArticleSearchResult
+                    )
+
+        RemoveLinkColor link ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.TimeLine _ ->
+                    ( model, Cmd.none )
+
+                Model.DragNode _ ->
+                    ( model, Cmd.none )
+
+                Model.Nodes nodeData ->
+                    ( { model | viewState = Model.Nodes { nodeData | nodeViewState = Default } }
+                    , Command.removeColorOnLink
+                        model
+                        link
+                        ArticleSearchResult
+                    )
 
 
 updateMenuMsg : Model -> Model.MenuMsg -> ( Model, Cmd Msg )
@@ -381,7 +505,7 @@ updateMenuMsg model msg =
                             model.viewState
 
                         Model.Nodes nodeData ->
-                            Model.Nodes { nodeData | showMenu = False }
+                            Model.Nodes { nodeData | nodeViewState = Default }
 
                         Model.TimeLine _ ->
                             model.viewState
@@ -516,7 +640,7 @@ removeNode id state =
             Maybe.Extra.unwrap
                 Model.Empty
                 (\selected ->
-                    Model.Nodes { data | nodes = nodes, selectedNode = selected, showMenu = False }
+                    Model.Nodes { data | nodes = nodes, selectedNode = selected, nodeViewState = Default }
                 )
                 selectedNode
 
@@ -558,7 +682,7 @@ updateShowNode model id =
             doUpdate x Model.TimeLine
 
         Model.Nodes x ->
-            doUpdate { x | showMenu = False } Model.Nodes
+            doUpdate { x | nodeViewState = Default } Model.Nodes
 
         Model.DragNode { drag, nodeData } ->
             doUpdate nodeData (\x -> Model.DragNode { drag = drag, nodeData = x })
@@ -591,7 +715,7 @@ articleSearchResult model nodesFound =
                         Model.Nodes
                             { nodes = updatedNodes_
                             , selectedNode = showDefault
-                            , showMenu = False
+                            , nodeViewState = Default
                             }
                 }
                 (Model.getNodeId showDefault)
@@ -603,7 +727,7 @@ articleSearchResult model nodesFound =
 
         Model.Nodes nodeData ->
             updateShowNode
-                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes_, selectedNode = nodeData.selectedNode, showMenu = False } }
+                { model | simulation = graph, viewState = Model.Nodes { nodes = updatedNodes_, selectedNode = nodeData.selectedNode, nodeViewState = Default } }
                 (Model.getNodeId nodeData.selectedNode)
 
         Model.DragNode { drag, nodeData } ->
