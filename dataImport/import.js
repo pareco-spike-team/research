@@ -3,7 +3,6 @@
 const
 	{ getDriver } = require('../backend/util/neoHelper.js'),
 	markdownFileToParse = `${__dirname}/../data/Galnet_Revamp_no_HTML.txt`,
-	shortId = require('shortid'),
 	Case = require('case'),
 	markdownParse = require('./markdownParser.js');
 
@@ -14,6 +13,25 @@ const fixTagCasing = t =>
 		join(' ');
 
 const caseInsensitiveRegexMatch = x => `(?muis)${x.toLowerCase()}`;
+
+const generateNextTagId = (() => {
+	let count = 1;
+
+	return () => {
+		const s = `${count++}`.padStart(4, '0');
+		return `tag_${s}`;
+	};
+})();
+
+
+const generateNextArticleId = (() => {
+	let count = 1;
+
+	return () => {
+		const s = `${count++}`.padStart(4, '0');
+		return `article_${s}`;
+	};
+})();
 
 async function saveTags(articles) {
 	const tags = new Set();
@@ -26,13 +44,13 @@ async function saveTags(articles) {
 	});
 	const driver = getDriver();
 	let session = driver.session();
-	for (const t of tags.values()) {
+	for (const t of [...tags.values()].sort()) {
 		let query = `
 			MERGE (t:Tag { tag: {tag} }) ON CREATE SET t.id = {id} RETURN t
 		`;
 		let args = {
 			tag: t,
-			id: shortId.generate()
+			id: generateNextTagId()
 		};
 		try {
 			await session.run(query, args);
@@ -75,7 +93,7 @@ async function saveArticles(articles) {
 			ON CREATE SET a.id = {id}, a.text = {text}
 			WITH a`;
 		let args = {
-			id: shortId.generate(),
+			id: generateNextArticleId(),
 			title: article.title.trim(),
 			text: article.text.trim(),
 			date: article.date
