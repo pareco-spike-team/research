@@ -161,12 +161,18 @@ function fixTitles(articles) {
 }
 
 async function addIndexes() {
-	const q1 = 'CALL db.index.fulltext.createNodeIndex("TextTitleIndex", ["Article"],["text", "title"])';
-	const q2 = 'CALL db.index.fulltext.createNodeIndex("TagIndex", ["Tag"],["tag"])';
+
+	const indexes = [
+		'CALL db.index.fulltext.createNodeIndex("TextTitleIndex", ["Article"],["text", "title"])',
+		'CALL db.index.fulltext.createNodeIndex("TagIndex", ["Tag"],["tag"])',
+		'CREATE CONSTRAINT ON (a:Article) ASSERT a.id IS UNIQUE',
+		'CREATE CONSTRAINT ON (t:Tag) ASSERT t.id IS UNIQUE'
+	];
 	const driver = getDriver();
 	let session = driver.session();
-	await session.run(q1, {});
-	await session.run(q2, {});
+	for (const q of indexes) {
+		await session.run(q, {});
+	}
 	driver.close();
 }
 
