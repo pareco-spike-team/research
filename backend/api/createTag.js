@@ -34,10 +34,10 @@ async function addLinkToArticle(session, articleId, tagId) {
 async function addLinkToMatchingArticles(session, tagId, newTag) {
 	const args = {
 		tagId: tagId,
-		stringMatch: `(?muis)${newTag}`
+		tagMatch: `(?muis)${newTag}`
 	};
 	const tagArticles = `
-		MATCH (a:Article) WHERE (a.text =~ {tagMatch}
+		MATCH (a:Article) WHERE a.text =~ {tagMatch}
 		MATCH (t:Tag) WHERE t.id = {tagId}
 		MERGE (a)-[:Tag]->(t)
 		RETURN count(a) AS articlesUpdated`;
