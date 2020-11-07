@@ -60,4 +60,74 @@ suite =
                         , PossibleTag "Tag"
                         , PossibleTag "Tag-2"
                         ]
+        , test "should not include ‘ and ’ in ‘Youscape’ " <|
+            \_ ->
+                TagFinder.find
+                    { article
+                        | title = "title"
+                        , text = "where the unique work ‘Youscape’ was stolen"
+                        , tags = []
+                    }
+                    |> Expect.equalLists
+                        [ PossibleTag "Youscape"
+                        ]
+        , test "should remove ,:; from possible tags " <|
+            \_ ->
+                TagFinder.find
+                    { article
+                        | title = "title"
+                        , text = "tags Colon: Semicolon; Comma, Dot. and ‘Multiple’:, "
+                        , tags = []
+                    }
+                    |> Expect.equalLists
+                        [ PossibleTag "Colon"
+                        , PossibleTag "Comma"
+                        , PossibleTag "Dot"
+                        , PossibleTag "Multiple"
+                        , PossibleTag "Semicolon"
+                        ]
+        , test "should treat 'of' as starting with a capital letter" <|
+            \_ ->
+                TagFinder.find
+                    { article
+                        | title = "title"
+                        , text = "system during the Alliance Festival of Culture."
+                        , tags = []
+                    }
+                    |> Expect.equalLists
+                        [ PossibleTag "Alliance Festival of Culture"
+                        ]
+        , test "should always treat 'The' as starting with small letter" <|
+            \_ ->
+                TagFinder.find
+                    { article
+                        | title = "title"
+                        , text = "It is true. The Alliance is __."
+                        , tags = []
+                    }
+                    |> Expect.equalLists
+                        [ PossibleTag "Alliance"
+                        ]
+        , test "should treat ’ in words like 'Turner’s World' together" <|
+            \_ ->
+                TagFinder.find
+                    { article
+                        | title = "title"
+                        , text = "Thing on Turner’s World is cool."
+                        , tags = []
+                    }
+                    |> Expect.equalLists
+                        [ PossibleTag "Turner’s World"
+                        ]
+        , test "should treat 'Xyz system' as a tag" <|
+            \_ ->
+                TagFinder.find
+                    { article
+                        | title = "title"
+                        , text = "word Xyz system is cool."
+                        , tags = []
+                    }
+                    |> Expect.equalLists
+                        [ PossibleTag "Xyz system"
+                        ]
         ]
