@@ -5,8 +5,12 @@ import Command
 import Dict
 import List.Extra
 import Maybe.Extra
-import Model exposing (ColorToChange(..), Drag, Model, Msg(..), Node(..), NodeViewState(..), Nodes, TextType(..))
+import Model exposing (ColorToChange(..), Drag, Model, Msg(..), Node(..), NodeViewState(..), Nodes, ViewState)
+import Model.Article exposing (Article)
+import Model.Base as Base exposing (Base, Id)
+import Model.ParsedText exposing (ParsedText, TextType(..))
 import Simulation
+import TagEdit.TagEdit as TagEdit
 import Util.RemoteData as RemoteData exposing (RemoteData(..))
 
 
@@ -68,107 +72,7 @@ update msg model =
             ( model, Cmd.none )
 
         ArticleSelectedResult (Ok nodes) ->
-            let
-                updateSelected selected =
-                    case selected of
-                        ArticleNode article ->
-                            let
-                                tags =
-                                    nodes
-                                        |> List.map
-                                            (\x ->
-                                                case x of
-                                                    TagNode t ->
-                                                        Just t
-
-                                                    ArticleNode _ ->
-                                                        Nothing
-
-                                                    LinkNode _ ->
-                                                        Nothing
-                                            )
-                                        |> Maybe.Extra.values
-
-                                addTags node =
-                                    case node of
-                                        ArticleNode x ->
-                                            ArticleNode { x | tags = tags }
-
-                                        TagNode _ ->
-                                            node
-
-                                        LinkNode _ ->
-                                            node
-                            in
-                            nodes
-                                |> List.Extra.find
-                                    (\node_ ->
-                                        case node_ of
-                                            ArticleNode x ->
-                                                x.id == article.id
-
-                                            TagNode _ ->
-                                                False
-
-                                            LinkNode _ ->
-                                                False
-                                    )
-                                |> Maybe.Extra.unwrap
-                                    selected
-                                    addTags
-
-                        TagNode _ ->
-                            selected
-
-                        LinkNode _ ->
-                            selected
-            in
-            case model.viewState of
-                Model.Empty ->
-                    ( model, Cmd.none )
-
-                Model.TimeLine timeLine ->
-                    ( { model
-                        | viewState =
-                            Model.TimeLine
-                                { timeLine
-                                    | selectedNode = updateSelected timeLine.selectedNode
-                                }
-                      }
-                    , Cmd.none
-                    )
-
-                Model.Nodes nodes_ ->
-                    ( { model
-                        | viewState =
-                            Model.Nodes
-                                { nodes_
-                                    | selectedNode = updateSelected nodes_.selectedNode
-                                }
-                      }
-                    , Cmd.none
-                    )
-
-                Model.DragNode dragNode ->
-                    let
-                        nodeData =
-                            dragNode.nodeData
-
-                        selected =
-                            updateSelected nodeData.selectedNode
-                    in
-                    ( { model
-                        | viewState =
-                            Model.DragNode
-                                { dragNode
-                                    | nodeData =
-                                        { nodeData
-                                            | selectedNode = selected
-                                        }
-                                }
-                      }
-                    , Cmd.none
-                    )
+            articleSelectedResult model nodes
 
         ArticleSelectedResult (Err e) ->
             let
@@ -222,6 +126,9 @@ update msg model =
                 Model.DragNode { nodeData } ->
                     getRelated nodeData
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         ShowNode id ->
             updateShowNode model id
 
@@ -251,6 +158,9 @@ update msg model =
                 Model.DragNode _ ->
                     ( model, Cmd.none )
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         ShowAndToggleMenu id ->
             updateShowNode model id
                 |> (\( model1, cmd1 ) ->
@@ -278,6 +188,9 @@ update msg model =
                     , Cmd.none
                     )
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         DragStart id xy ->
             let
                 newSim =
@@ -300,6 +213,9 @@ update msg model =
 
                 Model.DragNode x ->
                     ( { model | simulation = newSim, viewState = Model.DragNode { drag = Drag xy xy id, nodeData = x.nodeData } }, Cmd.none )
+
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
 
         DragAt xy ->
             case model.viewState of
@@ -329,6 +245,9 @@ update msg model =
                                 |> (\nodeData_ -> { nodeData_ | nodeViewState = Default })
                     in
                     ( { model | viewState = Model.DragNode { drag = Drag xy xy x.drag.id, nodeData = nodeData }, simulation = sim }, Cmd.none )
+
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
 
         DragEnd xy ->
             case model.viewState of
@@ -360,6 +279,9 @@ update msg model =
                     in
                     ( { model | viewState = viewState, simulation = sim }, Cmd.none )
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         SwitchToTimeLineView ->
             case model.viewState of
                 Model.Empty ->
@@ -374,6 +296,9 @@ update msg model =
                 Model.DragNode { nodeData } ->
                     ( { model | viewState = Model.TimeLine { nodes = nodeData.nodes, selectedNode = nodeData.selectedNode } }, Cmd.none )
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         SwitchToNodesView ->
             case model.viewState of
                 Model.Empty ->
@@ -387,6 +312,9 @@ update msg model =
 
                 Model.DragNode x ->
                     ( { model | viewState = Model.Nodes x.nodeData }, Cmd.none )
+
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
 
         MenuMsg menuMsg ->
             updateMenuMsg model menuMsg
@@ -408,6 +336,9 @@ update msg model =
                     )
 
                 Model.DragNode _ ->
+                    ( model, Cmd.none )
+
+                Model.EditTags _ _ ->
                     ( model, Cmd.none )
 
         ColourPaletteChangeColor delta color ->
@@ -452,6 +383,9 @@ update msg model =
                 Model.DragNode _ ->
                     ( model, Cmd.none )
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         SetLinkColor link color ->
             case model.viewState of
                 Model.Empty ->
@@ -471,6 +405,9 @@ update msg model =
                         ArticleSearchResult
                     )
 
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
         RemoveLinkColor link ->
             case model.viewState of
                 Model.Empty ->
@@ -489,6 +426,88 @@ update msg model =
                         link
                         ArticleSearchResult
                     )
+
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
+        OpenTagEditor article ->
+            case model.viewState of
+                Model.Empty ->
+                    ( model, Cmd.none )
+
+                Model.DragNode _ ->
+                    ( model, Cmd.none )
+
+                Model.EditTags _ _ ->
+                    ( model, Cmd.none )
+
+                Model.Nodes { selectedNode } ->
+                    ( { model
+                        | viewState = Model.EditTags model.viewState selectedNode
+                        , tagEditState = TagEdit.init article
+                      }
+                    , Cmd.none
+                    )
+
+                Model.TimeLine { selectedNode } ->
+                    ( { model
+                        | viewState = Model.EditTags model.viewState selectedNode
+                        , tagEditState = TagEdit.init article
+                      }
+                    , Cmd.none
+                    )
+
+        TagEditTagger subMsg ->
+            let
+                ( newModel, cmd ) =
+                    TagEdit.update subMsg model.tagEditState
+                        |> Tuple.mapFirst (\x -> { model | tagEditState = x })
+            in
+            case subMsg of
+                TagEdit.OnCancel ->
+                    case model.viewState of
+                        Model.EditTags viewState selectedNode ->
+                            ( { newModel | viewState = viewState }, cmd )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                TagEdit.OnSave ->
+                    let
+                        article =
+                            TagEdit.getArticle newModel.tagEditState
+
+                        actions =
+                            TagEdit.getActions newModel.tagEditState
+                    in
+                    ( newModel
+                    , Cmd.batch
+                        [ cmd
+                        , Command.editTagChanges model article actions TagEditSaved
+                        ]
+                    )
+
+                _ ->
+                    ( newModel, cmd )
+
+        TagEditSaved (Ok nodes) ->
+            let
+                ( newModel, cmd ) =
+                    articleSelectedResult model nodes
+            in
+            case newModel.viewState of
+                Model.EditTags viewState selectedNode ->
+                    ( { newModel | viewState = viewState }, cmd )
+
+                _ ->
+                    ( newModel, Cmd.batch [ cmd, Command.getAllTags ] )
+
+        TagEditSaved (Err e) ->
+            let
+                _ =
+                    Debug.log "fail" e
+            in
+            ( model, Cmd.none )
 
 
 updateMenuMsg : Model -> Model.MenuMsg -> ( Model, Cmd Msg )
@@ -511,6 +530,9 @@ updateMenuMsg model msg =
                             model.viewState
 
                         Model.DragNode _ ->
+                            model.viewState
+
+                        Model.EditTags _ _ ->
                             model.viewState
             in
             ( { model | simulation = newSim, viewState = newViewState }, Cmd.none )
@@ -535,7 +557,7 @@ updateMenuMsg model msg =
             ( model, Cmd.none )
 
 
-removeConnected : Model -> Model.Id -> ( Model, Cmd Msg )
+removeConnected : Model -> Base.Id -> ( Model, Cmd Msg )
 removeConnected model id =
     case model.viewState of
         Model.Nodes nodeData ->
@@ -598,8 +620,11 @@ removeConnected model id =
         Model.DragNode _ ->
             ( model, Cmd.none )
 
+        Model.EditTags _ _ ->
+            ( model, Cmd.none )
 
-removeNode : Model.Id -> Model.ViewState -> Model.ViewState
+
+removeNode : Base.Id -> Model.ViewState -> Model.ViewState
 removeNode id state =
     case state of
         Model.Empty ->
@@ -609,6 +634,9 @@ removeNode id state =
             state
 
         Model.DragNode _ ->
+            state
+
+        Model.EditTags _ _ ->
             state
 
         Model.Nodes data ->
@@ -645,7 +673,122 @@ removeNode id state =
                 selectedNode
 
 
-updateShowNode : Model -> Model.Id -> ( Model, Cmd Msg )
+articleSelectedResult : Model -> List Node -> ( Model, Cmd Msg )
+articleSelectedResult model nodes =
+    let
+        updateSelected selected =
+            case selected of
+                ArticleNode article ->
+                    let
+                        tags =
+                            nodes
+                                |> List.map
+                                    (\x ->
+                                        case x of
+                                            TagNode t ->
+                                                Just t
+
+                                            ArticleNode _ ->
+                                                Nothing
+
+                                            LinkNode _ ->
+                                                Nothing
+                                    )
+                                |> Maybe.Extra.values
+
+                        addTags node =
+                            case node of
+                                ArticleNode x ->
+                                    ArticleNode { x | tags = tags }
+
+                                TagNode _ ->
+                                    node
+
+                                LinkNode _ ->
+                                    node
+                    in
+                    nodes
+                        |> List.Extra.find
+                            (\node_ ->
+                                case node_ of
+                                    ArticleNode x ->
+                                        x.id == article.id
+
+                                    TagNode _ ->
+                                        False
+
+                                    LinkNode _ ->
+                                        False
+                            )
+                        |> Maybe.Extra.unwrap
+                            selected
+                            addTags
+
+                TagNode _ ->
+                    selected
+
+                LinkNode _ ->
+                    selected
+    in
+    case model.viewState of
+        Model.Empty ->
+            ( model, Cmd.none )
+
+        Model.TimeLine timeLine ->
+            ( { model
+                | viewState =
+                    Model.TimeLine
+                        { timeLine
+                            | selectedNode = updateSelected timeLine.selectedNode
+                        }
+              }
+            , Cmd.none
+            )
+
+        Model.Nodes nodes_ ->
+            ( { model
+                | viewState =
+                    Model.Nodes
+                        { nodes_
+                            | selectedNode = updateSelected nodes_.selectedNode
+                        }
+              }
+            , Cmd.none
+            )
+
+        Model.DragNode dragNode ->
+            let
+                nodeData =
+                    dragNode.nodeData
+
+                selected =
+                    updateSelected nodeData.selectedNode
+            in
+            ( { model
+                | viewState =
+                    Model.DragNode
+                        { dragNode
+                            | nodeData =
+                                { nodeData
+                                    | selectedNode = selected
+                                }
+                        }
+              }
+            , Cmd.none
+            )
+
+        Model.EditTags viewState selectedNode ->
+            let
+                newSelected =
+                    updateSelected selectedNode
+
+                ( newModel, cmd ) =
+                    articleSelectedResult { model | viewState = viewState } nodes
+            in
+            ( { model | viewState = Model.EditTags newModel.viewState newSelected }, cmd )
+
+
+updateShowNode : Model -> Base.Id -> ( Model, Cmd Msg )
 updateShowNode model id =
     let
         getNode nodes =
@@ -686,6 +829,9 @@ updateShowNode model id =
 
         Model.DragNode { drag, nodeData } ->
             doUpdate nodeData (\x -> Model.DragNode { drag = drag, nodeData = x })
+
+        Model.EditTags _ _ ->
+            ( model, Cmd.none )
 
 
 articleSearchResult : Model -> List Node -> ( Model, Cmd Msg )
@@ -739,6 +885,10 @@ articleSearchResult model nodesFound =
                 { model | simulation = graph, viewState = Model.DragNode { drag = drag, nodeData = newNodeData } }
                 (Model.getNodeId nodeData.selectedNode)
 
+        Model.EditTags state article ->
+            articleSearchResult { model | viewState = state } nodesFound
+                |> Tuple.mapFirst (\m -> { m | viewState = Model.EditTags m.viewState article })
+
 
 updateNodes : Model -> List Node -> Nodes
 updateNodes model nodesFound =
@@ -756,6 +906,9 @@ updateNodes model nodesFound =
 
                 Model.DragNode { nodeData } ->
                     nodeData.nodes
+
+                Model.EditTags state _ ->
+                    Dict.empty
     in
     nodesFound
         |> List.foldl
@@ -777,7 +930,7 @@ updateNodes model nodesFound =
             nodes
 
 
-buildGraph : Nodes -> List ( Model.Id, List Model.Id )
+buildGraph : Nodes -> List ( Base.Id, List Base.Id )
 buildGraph nodes =
     let
         nodeList =

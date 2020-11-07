@@ -27,8 +27,11 @@ html *
 	background: deepskyblue;
 	border: none;
 	margin-left: 0.5rem;
+	padding: 0.3rem 0.6rem 0.3rem 0.6rem;
 	border-radius: 0.3rem;
+	cursor: pointer;
 }
+
 .button:hover {
 	color: black;
 }
@@ -37,13 +40,32 @@ html *
 	background-color: dodgerblue;
 }
 
+.button-danger {
+	background-color: rgb(230, 29, 29);
+}
+
+.button-row {
+	margin-top: 1rem;
+	margin-bottom: 1rem;
+	float: right;
+}
+
+.icon {
+	margin-top: 0.5rem;
+	margin-right: 0.5rem;
+}
+.icon-green {
+	color: green;
+}
+.icon-red {
+	color: red;
+}
+
 .box-shadow {
 	background-color: #181A1E;
 	padding: 0rem 0.2rem 0.2rem 0.2rem;
 	filter: drop-shadow(0.3rem 0.3rem 0.2rem black)
 }
-
-
 
 .article-menu-back {
 	fill: #3A3C40;
@@ -68,8 +90,6 @@ html *
 	flex-direction: column;
 }
 
-
-
 .link-menu-item {
 	margin-top: 0.2rem;
 }
@@ -86,7 +106,7 @@ html *
 
 
 .color-picker {
-    display: flex;
+	display: flex;
 	flex-direction: column;
 	padding: 0.5rem;
 }
@@ -128,6 +148,55 @@ html *
 	background-image: linear-gradient(to right, #000, #0000FF);
 }
 
+.tagedit-container {
+	margin: 1rem;
+
+}
+
+.tagedit-tags-container {
+
+	margin-left: 0.5rem;
+	background-color: rgb(40, 44, 50);
+	border-radius: 0.5rem;
+	padding: 0 1rem 0 1rem;
+	min-width: 20%;
+}
+
+.tagedit-container-edit {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.tagedit-tags {
+	display: flex;
+	flex-direction: column;
+}
+.tagedit-tag-row {
+	display: flex;
+}
+
+.tagedit-tag {
+	margin: 0.3rem;
+	border-radius: 0.2rem;
+	padding: 0.2rem 0.3rem;
+	align-self: flex-start;
+	min-width: 10rem;
+	background-color: rgb(10,10,12);
+}
+
+.tagedit-input {
+	color: black;
+	border-radius: 0.3rem;
+	border: none;
+	padding: 0.2rem 0.3em;
+	background-color: rgb(10,10,12);
+	color: rgb(255, 255, 255);
+}
+
+.tagedit-buttons {
+	padding: 0.2rem 0.3rem;
+}
 
 #link {
 	cursor: pointer;
@@ -140,6 +209,7 @@ html *
 	fill-opacity: 0.15;
 	stroke-width: 6px;
 }
+
 #dummy:hover {
 	stroke: tint(rgb(165, 171, 182), 20%)
 }

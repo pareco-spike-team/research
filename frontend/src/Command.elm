@@ -1,5 +1,6 @@
 module Command exposing
-    ( getAllTags
+    ( editTagChanges
+    , getAllTags
     , getArticlesWithTag
     , getTagsForArticle
     , getUser
@@ -15,7 +16,12 @@ import HttpBuilder exposing (request, withExpect, withHeader, withJsonBody)
 import Json.Decode as JD exposing (Decoder)
 import Json.Encode as JE
 import Maybe.Extra
-import Model exposing (Article, Link, Model, Msg(..), Node(..), Nodes, Tag, TextType(..))
+import Model exposing (Link, Model, Msg(..), Node(..), Nodes)
+import Model.Article exposing (Article)
+import Model.Base exposing (Base, Id)
+import Model.ParsedText exposing (ParsedText, TextType(..))
+import Model.Tag exposing (Tag)
+import TagEdit.TagEdit as TagEdit
 import Url.Builder as UrlBuilder
 
 
@@ -110,10 +116,6 @@ getTagsForArticle model nodes article msg =
         |> request
 
 
-
---|> withQueryParams [ ( "includeArticles", String.join "," include ) ]
-
-
 setColorOnLink : Model -> Link -> (Result Http.Error (List Node) -> Msg) -> Cmd Msg
 setColorOnLink model link msg =
     let
@@ -154,3 +156,51 @@ removeColorOnLink model link msg =
         |> withJsonBody json
         |> withExpect (Http.expectJson msg (Model.searchResultDecoder model))
         |> request
+
+
+editTagChanges : Model -> Article -> List TagEdit.Action -> (Result Http.Error (List Node) -> Msg) -> Cmd Msg
+editTagChanges model article actions msg =
+    let
+        json =
+            JE.list
+                (\action ->
+                    case action of
+                        TagEdit.AddThis_ tag ->
+                            JE.object
+                                [ ( "action", JE.string "add" )
+                                , ( "value", JE.string tag )
+                                ]
+
+                        TagEdit.AddAll_ tag ->
+                            JE.object
+                                [ ( "action", JE.string "addAll" )
+                                , ( "value", JE.string tag )
+                                ]
+
+                        TagEdit.DeleteThis_ tag ->
+                            JE.object
+                                [ ( "action", JE.string "delete" )
+                                , ( "value", JE.string tag.id )
+                                ]
+
+                        TagEdit.DeleteAll_ tag ->
+                            JE.object
+                                [ ( "action", JE.string "deleteAll" )
+                                , ( "value", JE.string tag.id )
+                                ]
+                )
+                actions
+                |> (\xs -> JE.object [ ( "actions", xs ) ])
+    in
+    if List.isEmpty actions then
+        Cmd.none
+
+    else
+        UrlBuilder.relative
+            [ "api", "articles", article.id, "tags" ]
+            []
+            |> HttpBuilder.post
+            |> withJsonBody json
+            |> withExpect (Http.expectJson msg (Model.searchResultDecoder model))
+            -- |> withTimeout (10 * Time.second)
+            |> request

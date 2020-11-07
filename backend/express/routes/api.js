@@ -5,6 +5,7 @@ const
 	getArticlesWithTag = require('../../api/getArticlesWithTag.js'),
 	searchArticles = require('../../api/searchArticles.js'),
 	getTagsForArticle = require('../../api/getTagsForArticle.js'),
+	editTagsForArticle = require('../../api/editTagsForArticle.js'),
 	setColorOnLink = require('../../api/setColorOnLink.js'),
 	removeColorOnLink = require('../../api/removeColorOnLink.js'),
 	createTag = require('../../api/createTag.js');
@@ -15,10 +16,13 @@ const onError = (res) => err => {
 	res.status(500).send();
 };
 
-const get = (res, f) => {
-	f().
-		then(result => res.status(200).json(result)).
-		catch(onError(res));
+const do_ = async (res, f) => {
+	try {
+		const result = await f();
+		res.status(200).json(result);
+	} catch (err) {
+		onError(res)(err);
+	}
 };
 
 const isSessionExpired = req => {
@@ -49,12 +53,7 @@ const setColor = async (req, res) => {
 	const from = req.body.from;
 	const to = req.body.to;
 
-	try {
-		const result = await setColorOnLink(username, from, to, color);
-		res.json(result);
-	} catch (err) {
-		onError(res)(err);
-	}
+	await do_(res, () => setColorOnLink(username, from, to, color))
 };
 
 const removeColor = async (req, res) => {
@@ -62,33 +61,35 @@ const removeColor = async (req, res) => {
 	const from = req.body.from;
 	const to = req.body.to;
 
-	try {
-		const result = await removeColorOnLink(username, from, to);
-		res.json(result);
-	} catch (err) {
-		onError(res)(err);
-	}
+	await do_(res, () => removeColorOnLink(username, from, to));
+};
+
+const editTagsForArticle_ = async (req, res) => {
+
+	await do_(res, async () => {
+		const articleId = req.params.articleId, actions = req.body.actions;
+		return await editTagsForArticle(articleId, actions);
+	});
 };
 
 const createTag_ = async (req, res) => {
-	try {
+	await do_(res, async () => {
 		const newTag = req.body.newTag;
 		const articleId = req.body.articleId;
 		const addToAllArticlesMatchingTag = req.body.addToAllArticlesMatchingTag;
-		const result = await createTag(newTag, articleId, addToAllArticlesMatchingTag);
-		res.json(result);
-	} catch (err) {
-		onError(res)(err);
-	}
+
+		return await createTag(newTag, articleId, addToAllArticlesMatchingTag);
+	});
 };
 
 const api = {
-	searchByTag: (req, res) => get(res, () => searchByTag(req.query.filter)),
-	getArticlesWithTag: (req, res) => get(res, () => getArticlesWithTag(req.params.tagId)),
+	searchByTag: (req, res) => do_(res, () => searchByTag(req.query.filter)),
+	getArticlesWithTag: (req, res) => do_(res, () => getArticlesWithTag(req.params.tagId)),
 
-	searchArticles: (req, res) => get(res, () => searchArticles(req.query.tagFilter, req.query.articleFilter)),
-	getTagsForArticle: (req, res) => get(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles)),
-	createTag: (req, res) => createTag_(req, res),
+	searchArticles: (req, res) => do_(res, () => searchArticles(req.query.tagFilter, req.query.articleFilter)),
+	getTagsForArticle: (req, res) => do_(res, () => getTagsForArticle(req.params.articleId, req.query.includeArticles)),
+	editTagsForArticle: editTagsForArticle_,
+	createTag: createTag_,
 
 	getUser: getUser,
 	setColor: setColor,
@@ -105,6 +106,7 @@ module.exports = () => {
 	router.get('/api/tags/:tagId/articles', api.getArticlesWithTag);
 	router.get('/api/articles', api.searchArticles);
 	router.get('/api/articles/:articleId/tags', api.getTagsForArticle);
+	router.post('/api/articles/:articleId/tags', api.editTagsForArticle);
 	router.post('/api/articles/:articleId/color', api.setColor);
 	router.delete('/api/articles/:articleId/color', api.removeColor);
 

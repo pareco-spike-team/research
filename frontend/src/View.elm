@@ -16,9 +16,14 @@ import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Decode as JD
 import Maybe.Extra
-import Model exposing (Article, Link, Model, Msg(..), Node(..), NodeViewState(..))
+import Model exposing (Link, Model, Msg(..), Node(..), NodeViewState(..))
+import Model.Article exposing (Article)
+import Model.Base exposing (Base, Id)
+import Model.ParsedText exposing (ParsedText, TextType(..))
+import Model.Tag exposing (Tag)
 import Path.LowLevel as LL
 import Simulation
+import TagEdit.TagEdit as TagEdit
 import TypedSvg as Svg exposing (circle, g, line, svg, text_, title)
 import TypedSvg.Attributes as SvgAttr exposing (color, fill, fontFamily, fontWeight, lengthAdjust, stroke, textAnchor)
 import TypedSvg.Attributes.InEm as InEm
@@ -47,13 +52,24 @@ view model =
                     ( text "", text "" )
 
                 Model.TimeLine nodeData ->
-                    ( viewSelectedNode nodeData.selectedNode, drawTimeLine nodeData )
+                    ( viewSelectedNode nodeData.selectedNode
+                    , drawTimeLine nodeData
+                    )
 
                 Model.Nodes nodeData ->
-                    ( viewSelectedNode nodeData.selectedNode, drawGraph model.simulation nodeData )
+                    ( viewSelectedNode nodeData.selectedNode
+                    , drawGraph model.simulation nodeData
+                    )
 
                 Model.DragNode { nodeData } ->
-                    ( viewSelectedNode nodeData.selectedNode, drawGraph model.simulation nodeData )
+                    ( viewSelectedNode nodeData.selectedNode
+                    , drawGraph model.simulation nodeData
+                    )
+
+                Model.EditTags viewState selected ->
+                    ( viewSelectedNode selected
+                    , TagEdit.view TagEditTagger model.tagEditState
+                    )
     in
     div
         [ style "background-color" currentTheme.background
@@ -87,7 +103,8 @@ showError model =
             text ""
 
         Fail e ->
-            LightBox.view LightBox.Normal
+            LightBox.view
+                LightBox.Normal
                 (errorPopup e)
                 Nothing
 
@@ -167,6 +184,9 @@ getViewModeIcon viewMode =
         Model.TimeLine _ ->
             create "fas fa-project-diagram" SwitchToNodesView
 
+        Model.EditTags _ _ ->
+            text ""
+
 
 viewSelectedNode : Model.Node -> Html Msg
 viewSelectedNode selectedNode_ =
@@ -214,63 +234,77 @@ selectedNode selectedNode_ =
                 ]
 
         Model.ArticleNode article ->
-            let
-                tags =
-                    article.tags
-                        |> List.map .tag
+            viewArticle article
 
-                parsedText =
-                    article.parsedText
-                        |> List.map
-                            (\( _, text_, type_ ) ->
-                                case type_ of
-                                    Model.TypeText ->
-                                        span [ style "color" currentTheme.text.text ] [ text text_ ]
 
-                                    Model.TypeTag ->
-                                        let
-                                            bgColor =
-                                                if List.any (\x -> String.toLower x == String.toLower text_) tags then
-                                                    currentTheme.text.tag
-
-                                                else
-                                                    currentTheme.text.possibleTag
-                                        in
-                                        span
-                                            [ style "color" currentTheme.text.text
-                                            , style "background-color" bgColor
-                                            , style "border-radius" "3px"
-                                            ]
-                                            [ text text_ ]
-
-                                    Model.NewLine ->
-                                        br [] []
-                            )
-            in
-            div
-                []
-                [ div [ style "font-weight" "bold" ]
-                    [ div [ style "color" currentTheme.text.text ] [ text article.date ]
-                    , div [ style "color" currentTheme.text.text ] [ text article.title ]
-                    ]
-                , p [] []
-                , span [] parsedText
-                , p [] []
-                , div
-                    [ style "color" currentTheme.text.title
-                    , style "font-weight" "bold"
-                    ]
-                    [ text "Tags: " ]
-                , div []
-                    [ ul
-                        [ style "margin-block-start" "0.5em"
-                        , style "padding-inline-start" "0.5em"
-                        ]
-                        (tags
-                            |> List.map (renderTag li)
-                        )
-                    ]
+viewArticle : Article -> Html Msg
+viewArticle article =
+    let
+        tags =
+            article.tags
+                |> List.map .tag
+    in
+    div
+        []
+        [ div [ style "font-weight" "bold" ]
+            [ div [ style "color" currentTheme.text.text ] [ text article.date ]
+            , div [ style "color" currentTheme.text.text ] [ text article.title ]
+            ]
+        , p [] []
+        , span [] (articleToHtml article)
+        , p [] []
+        , div
+            [ style "color" currentTheme.text.title
+            , style "font-weight" "bold"
+            ]
+            [ text "Tags: " ]
+        , div []
+            [ ul
+                [ style "margin-block-start" "0.5em"
+                , style "padding-inline-start" "0.5em"
                 ]
+                (tags
+                    |> List.map (renderTag li)
+                )
+            ]
+        , div []
+            [ button [ class "button", onClick (OpenTagEditor article) ] [ text "Edit Tags" ] ]
+        ]
+
+
+articleToHtml : Article -> List (Html Msg)
+articleToHtml article =
+    let
+        tags =
+            article.tags
+                |> List.map .tag
+    in
+    article.parsedText
+        |> List.map
+            (\( _, text_, type_ ) ->
+                case type_ of
+                    TypeText ->
+                        span [ style "color" currentTheme.text.text ] [ text text_ ]
+
+                    TypeTag ->
+                        let
+                            bgColor =
+                                if List.any (\x -> String.toLower x == String.toLower text_) tags then
+                                    currentTheme.text.tag
+
+                                else
+                                    currentTheme.text.possibleTag
+                        in
+                        span
+                            [ style "color" currentTheme.text.text
+                            , style "background-color" bgColor
+                            , style "border-radius" "3px"
+                            ]
+                            [ text text_ ]
+
+                    NewLine ->
+                        br [] []
+            )
 
 
 searchBox : Model -> Html Msg
@@ -477,6 +511,7 @@ getLinkByEdge nodes edge =
     link
 
 
+preventBrowserContextMenu : Attribute Msg
 preventBrowserContextMenu =
     Html.Events.preventDefaultOn "contextmenu" (JD.succeed ( NoOp, True ))
 
@@ -527,7 +562,7 @@ linkElement nodeData edge =
         link
 
 
-onMouseDown : { a | id : Model.Id } -> Attribute Msg
+onMouseDown : { a | id : Id } -> Attribute Msg
 onMouseDown node =
     Mouse.onDown (.clientPos >> DragStart node.id)
 
@@ -629,7 +664,7 @@ drawArc circleX circleY circleRadiusInEm angleWidth { startAngle, icon, onClickM
     ]
 
 
-nodeElement : Model.NodeData -> Simulation.Node Model.Id -> List (Html Msg)
+nodeElement : Model.NodeData -> Simulation.Node Id -> List (Html Msg)
 nodeElement nodeData simulationNode =
     let
         nodeId =
@@ -785,7 +820,7 @@ drawGraph simulation nodeData =
             simEdges
                 |> List.map (linkElementMenu nodeData)
 
-        toNodeElement : Simulation.Node Model.Id -> List (Html Msg)
+        toNodeElement : Simulation.Node Id -> List (Html Msg)
         toNodeElement x =
             nodeElement nodeData x
 
@@ -851,12 +886,12 @@ drawTimeLine { nodes } =
                 |> List.sort
                 |> List.reverse
 
-        listTags : List Model.Tag -> List (Html Msg)
+        listTags : List Tag -> List (Html Msg)
         listTags tags =
             tags
                 |> List.map (\x -> renderTag div x.tag)
 
-        listDays : List Model.Article -> List (Html Msg)
+        listDays : List Article -> List (Html Msg)
         listDays articles =
             articles
                 |> List.map
@@ -903,7 +938,7 @@ drawTimeLine { nodes } =
         ]
 
 
-getArticleTags : Model.Nodes -> Model.Article -> List Model.Tag
+getArticleTags : Model.Nodes -> Article -> List Tag
 getArticleTags nodes article =
     nodes
         |> Dict.filter

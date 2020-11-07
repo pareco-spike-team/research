@@ -7,13 +7,15 @@
   "author": "Cmdr Clannad <clannad@spam.org>",
   "license": "MIT",
   "scripts": {
-    "test": "mocha --exit tests/**/*Tests.js",
+    "test-elm": "cd frontend && ../node_modules/.bin/elm-test --compiler ../node_modules/.bin/elm",
+    "test-mocha": "mocha --exit tests/**/*Tests.js",
+    "test": "yarn test-mocha && yarn test-elm",
     "install_packages": "yarn install",
     "precopy": "yarn install_packages && if [ -d './dist' ]; then rm -Rf ./dist; fi && mkdir -p dist/fontawesome",
     "copy": "cp -a ./node_modules/@fortawesome/fontawesome-free/. ./dist/fontawesome/",
     "prebuild": "yarn test && yarn copy && cp ./frontend/src/index.html ./dist/index.html && cp ./frontend/src/galnetpedia.css ./dist/galnetpedia.css",
-    "build": "./node_modules/.bin/elm make ./frontend/src/Main.elm --output=./dist/galnetpedia.js --debug",
-    "build_release": "yarn prebuild && ./node_modules/.bin/elm make ./frontend/src/Main.elm --output=./dist/galnetpedia.js"
+    "build": "cd frontend && ../node_modules/.bin/elm make ./src/Main.elm --output=../dist/galnetpedia.js --debug",
+    "build_release": "yarn prebuild && cd frontend && ../node_modules/.bin/elm make ./frontend/src/Main.elm --output=../dist/galnetpedia.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "~5.14.0",
@@ -35,7 +37,8 @@
   "devDependencies": {
     "chai": "~4.2.0",
     "elm": "~0.19.1-3",
-    "elm-format": "~0.8.3",
+    "elm-format": "~0.8.4",
+    "elm-test": "~0.19.1-revision4",
     "jshint": "~2.12.0",
     "mocha": "~8.1.3",
     "serverless": "~1.80.0",

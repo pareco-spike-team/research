@@ -20,7 +20,7 @@ npm-debug.log
 *.orig
 
 .serverless/*
-elm-stuff/*
+*/elm-stuff/*
 dist/*
 config.dev.json
 config.production.json

@@ -1,9 +1,6 @@
 module Model exposing
-    ( Article
-    , ColorToChange(..)
+    ( ColorToChange(..)
     , Drag
-    , Id
-    , Index
     , Link
     , MenuMsg(..)
     , Model
@@ -12,10 +9,7 @@ module Model exposing
     , NodeData
     , NodeViewState(..)
     , Nodes
-    , ParsedText
     , SearchFilter
-    , Tag
-    , TextType(..)
     , TimeLineData
     , ViewState(..)
     , WindowSize
@@ -34,7 +28,12 @@ import Http
 import Json.Decode as JD exposing (Decoder, at, fail, field, int, list, string, succeed)
 import Json.Decode.Pipeline exposing (hardcoded, optional, required, requiredAt)
 import Maybe.Extra
+import Model.Article exposing (Article)
+import Model.Base exposing (Base, Id)
+import Model.ParsedText exposing (ParsedText, TextType(..))
+import Model.Tag exposing (Tag)
 import Simulation
+import TagEdit.TagEdit as TagEdit
 import Time
 import Util.RemoteData exposing (RemoteData(..))
 
@@ -65,6 +64,17 @@ type Msg
     | SetLinkColor Link Color
     | RemoveLinkColor Link
     | NoOp
+    | OpenTagEditor Article
+    | TagEditTagger TagEdit.Msg
+    | TagEditSaved (Result Http.Error (List Node))
+
+
+type alias TODO =
+    ()
+
+
+type alias ModifiedTag =
+    TODO
 
 
 type MenuMsg
@@ -82,6 +92,7 @@ type alias Model =
     , searchFilter : SearchFilter
     , simulation : Simulation.Simulation String
     , window : WindowSize
+    , tagEditState : TagEdit.State
     }
 
 
@@ -90,6 +101,7 @@ type ViewState
     | Nodes NodeData
     | TimeLine TimeLineData
     | DragNode { drag : Drag, nodeData : NodeData }
+    | EditTags ViewState Node
 
 
 type alias SearchFilter =
@@ -107,8 +119,12 @@ type alias NodeData =
     { nodes : Nodes
     , selectedNode : Node
     , nodeViewState : NodeViewState
+    }
 
-    -- , showMenu : Bool
+
+type alias TimeLineData =
+    { nodes : Nodes
+    , selectedNode : Node
     }
 
 
@@ -124,12 +140,6 @@ type ColorToChange
     | Blue
 
 
-type alias TimeLineData =
-    { nodes : Nodes
-    , selectedNode : Node
-    }
-
-
 type alias WindowSize =
     { width : Float
     , height : Float
@@ -141,18 +151,6 @@ type alias Drag =
     , current : ( Float, Float )
     , id : Id
     }
-
-
-type alias Id =
-    String
-
-
-type alias Base a =
-    { a | id : Id }
-
-
-type alias Tag =
-    Base { tag : String }
 
 
 colorDecoder : Decoder (Maybe Color.Color)
@@ -181,16 +179,6 @@ tagDecoder =
     succeed ctor
         |> required "id" string
         |> required "tag" string
-
-
-type alias Article =
-    Base
-        { date : String
-        , title : String
-        , text : String
-        , tags : List Tag
-        , parsedText : List ParsedText
-        }
 
 
 articleDecoder : Model -> Decoder Article
@@ -469,20 +457,6 @@ getNodeId n =
 
 type alias Nodes =
     Dict Id Node
-
-
-type alias Index =
-    Int
-
-
-type alias ParsedText =
-    ( Index, String, TextType )
-
-
-type TextType
-    = TypeText
-    | TypeTag
-    | NewLine
 
 
 type Email

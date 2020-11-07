@@ -6,8 +6,9 @@ import Browser.Events
 import Command
 import Html.Events.Extra.Mouse as Mouse
 import Json.Decode as Decode
-import Model exposing (Id, Model, Msg(..))
+import Model exposing (Model, Msg(..))
 import Simulation
+import TagEdit.TagEdit as TagEdit
 import Task
 import Update exposing (update)
 import Util.RemoteData as RemoteData exposing (RemoteData(..))
@@ -38,6 +39,7 @@ init _ =
                     |> Simulation.withMaxIterations 500
                     |> Simulation.withNodes []
             , window = { width = 1900, height = 1000 }
+            , tagEditState = TagEdit.empty
             }
     in
     ( model
@@ -73,6 +75,9 @@ subscriptions model =
 
                     --, Browser.Events.onAnimationFrame Tick
                     ]
+
+                Model.EditTags _ _ ->
+                    []
 
         resizeEvent : Sub Msg
         resizeEvent =

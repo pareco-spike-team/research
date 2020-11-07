@@ -72,9 +72,9 @@ cssLightBoxContent =
 
 cssLightBoxClose : List (Html.Attribute msg)
 cssLightBoxClose =
-    [ ( "font-size", "2.0rem" )
-    , ( "line-height", "4.0rem" )
-    , ( "width", "4.0rem" )
+    [ ( "font-size", "1.0rem" )
+    , ( "line-height", "1rem" )
+    , ( "width", "1rem" )
     , ( "text-align", "center" )
     , ( "color", "#fff" )
     , ( "position", "absolute" )
@@ -127,7 +127,7 @@ innerView alertStyle closeAccept body =
                 [ div (cssLightBoxContent ++ contentStyle)
                     [ div
                         (onClick close :: cssLightBoxClose)
-                        [ FA.render FA.Close ]
+                        [ FA.render "" FA.Close ]
                     , body
                     ]
                 ]
