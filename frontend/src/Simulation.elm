@@ -152,7 +152,7 @@ createNewNode sim idx x =
                 |> toFloat
 
         ( xd, yd ) =
-            fromPolar ( 0.7 * sim.springLength + 3 * toFloat idx, degrees angle )
+            fromPolar ( 0.8 * sim.springLength + 1.2 * toFloat idx, degrees angle )
     in
     VectorNode x
         { x = Tuple.first sim.center + xd
@@ -170,13 +170,13 @@ createNewNode sim idx x =
 init : ( Float, Float ) -> Simulation comparable
 init center =
     { springLength = 200
-    , springForce = 2
-    , gravity = 8
-    , mass = 150
-    , deltaTime = 0.5
+    , springForce = 4
+    , gravity = 20
+    , mass = 250
+    , deltaTime = 0.6
     , closestBodiesCount = 5
-    , friction = 0.15
-    , maxTicks = 200
+    , friction = 1.2
+    , maxTicks = 100
     , tickCount = 0
     , center = center
     , nodes = Dict.empty
@@ -318,7 +318,7 @@ setCenter center s =
 
 isCompleted : Simulation comparable -> Bool
 isCompleted sim =
-    case ( sim.tickCount < 20, sim.tickCount > sim.maxTicks ) of
+    case ( sim.tickCount < 20, sim.tickCount >= sim.maxTicks ) of
         ( True, _ ) ->
             False
 

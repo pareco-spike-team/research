@@ -36,7 +36,7 @@ init _ =
             , allTags = []
             , simulation =
                 Simulation.init ( 400.0, 400.0 )
-                    |> Simulation.withMaxIterations 500
+                    |> Simulation.withMaxIterations 200
                     |> Simulation.withNodes []
             , window = { width = 1900, height = 1000 }
             , tagEditState = TagEdit.empty
@@ -66,14 +66,13 @@ subscriptions model =
                         []
 
                     else
-                        [--Browser.Events.onAnimationFrame Tick
+                        [ Browser.Events.onAnimationFrame Tick
                         ]
 
                 Model.DragNode { drag, nodeData } ->
                     [ Browser.Events.onMouseMove (Decode.map (.clientPos >> DragAt) Mouse.eventDecoder)
                     , Browser.Events.onMouseUp (Decode.map (.clientPos >> DragEnd) Mouse.eventDecoder)
-
-                    --, Browser.Events.onAnimationFrame Tick
+                    , Browser.Events.onAnimationFrame Tick
                     ]
 
                 Model.EditTags _ _ ->
