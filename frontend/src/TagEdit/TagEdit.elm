@@ -12,7 +12,7 @@ module TagEdit.TagEdit exposing
 
 import ColorTheme exposing (currentTheme)
 import Html exposing (Html, button, div, h1, h2, input, p, span, text)
-import Html.Attributes exposing (class, id, placeholder, style, title, type_, value)
+import Html.Attributes exposing (class, classList, id, placeholder, style, title, type_, value)
 import Html.Events
     exposing
         ( onClick
@@ -26,6 +26,7 @@ import Model.Tag exposing (Tag)
 import TagFinder exposing (PossibleTag(..))
 import Util.FontAwesome as FA
 import Util.LightBox as LightBox
+import Util.Spinner as Spinner
 
 
 type Msg
@@ -49,6 +50,7 @@ type alias TagModel =
     { article : Article
     , possibleTags : List PossibleTag
     , actions : List Action
+    , saving : Bool
     }
 
 
@@ -59,13 +61,18 @@ type Action
     | DeleteAll_ Tag
 
 
+emptyTagModel : TagModel
+emptyTagModel =
+    { article = { id = "", date = "1984-09-20", title = "Elite", text = "", tags = [], parsedText = [] }
+    , possibleTags = []
+    , actions = []
+    , saving = False
+    }
+
+
 empty : State
 empty =
-    State
-        { article = { id = "", date = "1984-09-20", title = "Elite", text = "", tags = [], parsedText = [] }
-        , possibleTags = []
-        , actions = []
-        }
+    State emptyTagModel
 
 
 init : Article -> State
@@ -75,9 +82,9 @@ init article =
             TagFinder.find article
     in
     State
-        { article = article
-        , possibleTags = possibleTags
-        , actions = []
+        { emptyTagModel
+            | article = article
+            , possibleTags = possibleTags
         }
 
 
@@ -146,7 +153,7 @@ update msg (State model) =
             undoActions model [] model.actions
 
         OnSave ->
-            ( State model, Cmd.none )
+            ( State { model | saving = True }, Cmd.none )
 
 
 undoActions : TagModel -> List Action -> List Action -> ( State, Cmd msg )
@@ -228,149 +235,157 @@ view tagger (State model) =
             List.map .tag model.article.tags
     in
     div
-        [ class "tagedit-container" ]
-        [ h1 [ style "font-weight" "bold" ]
-            [ div [ style "color" currentTheme.text.text ] [ text "Tag edit" ]
-            ]
-        , div [ class "tagedit-container-edit" ]
-            [ div [ class "tagedit-tags-container" ]
-                [ h2 [] [ text "Existing Tags" ]
-                , div
-                    [ class "tagedit-tags" ]
-                    (model.article.tags
-                        |> List.map
-                            (\tag ->
-                                div [ class "tagedit-tag-row" ]
-                                    [ div
-                                        [ class "tagedit-tag" ]
-                                        [ input [ type_ "text", class "tagedit-input", value tag.tag ] [] ]
-                                    , div [ class "tagedit-buttons" ]
-                                        [ button [ class "button", onClick (DeleteThis tag) ]
-                                            [ text "Delete this" ]
-                                        , button
-                                            [ class "button button-danger", onClick (DeleteAll tag) ]
-                                            [ text "Delete all" ]
-                                        ]
-                                    ]
-                            )
-                    )
+        []
+        [ div
+            [ classList [ ( "tagedit-container", True ), ( "blur-it", model.saving ) ] ]
+            [ h1 [ style "font-weight" "bold" ]
+                [ div [ style "color" currentTheme.text.text ] [ text "Tag edit" ]
                 ]
-            , div [ class "tagedit-tags-container" ]
-                [ h2 [] [ text "Suggested Tags" ]
-                , div
-                    [ class "tagedit-tags" ]
-                    ((model.possibleTags
-                        |> List.map
-                            (\(PossibleTag pt) ->
-                                div [ class "tagedit-tag-row" ]
+            , div [ class "tagedit-container-edit" ]
+                [ div [ class "tagedit-tags-container" ]
+                    [ h2 [] [ text "Existing Tags" ]
+                    , div
+                        [ class "tagedit-tags" ]
+                        (model.article.tags
+                            |> List.map
+                                (\tag ->
+                                    div [ class "tagedit-tag-row" ]
+                                        [ div
+                                            [ class "tagedit-tag" ]
+                                            [ input [ type_ "text", class "tagedit-input", value tag.tag ] [] ]
+                                        , div [ class "tagedit-buttons" ]
+                                            [ button [ class "button", onClick (DeleteThis tag) ]
+                                                [ text "Delete this" ]
+                                            , button
+                                                [ class "button button-danger", onClick (DeleteAll tag) ]
+                                                [ text "Delete all" ]
+                                            ]
+                                        ]
+                                )
+                        )
+                    ]
+                , div [ class "tagedit-tags-container" ]
+                    [ h2 [] [ text "Suggested Tags" ]
+                    , div
+                        [ class "tagedit-tags" ]
+                        ((model.possibleTags
+                            |> List.map
+                                (\(PossibleTag pt) ->
+                                    div [ class "tagedit-tag-row" ]
+                                        [ div
+                                            [ class "tagedit-tag" ]
+                                            [ input
+                                                [ type_ "text"
+                                                , class "tagedit-input"
+                                                , value pt
+                                                , onInput (EditSuggestion pt)
+                                                ]
+                                                []
+                                            ]
+                                        , div [ class "tagedit-buttons" ]
+                                            [ button
+                                                [ class "button", title "Add on this article only", onClick (AddThis pt) ]
+                                                [ text "Add this" ]
+                                            , button
+                                                [ class "button", title "Add on all articles with this phrase", onClick (AddAll pt) ]
+                                                [ text "Add all" ]
+                                            , button
+                                                [ class "button", title "Remove this suggestion", onClick (RemoveSuggested pt) ]
+                                                [ text "Remove" ]
+                                            ]
+                                        ]
+                                )
+                         )
+                            ++ [ div [ class "tagedit-tag-row" ]
                                     [ div
                                         [ class "tagedit-tag" ]
                                         [ input
                                             [ type_ "text"
                                             , class "tagedit-input"
-                                            , value pt
-                                            , onInput (EditSuggestion pt)
+                                            , value ""
+                                            , placeholder "Add tag"
+                                            , onInput AddNewSuggestion
                                             ]
                                             []
                                         ]
-                                    , div [ class "tagedit-buttons" ]
-                                        [ button
-                                            [ class "button", title "Add on this article only", onClick (AddThis pt) ]
-                                            [ text "Add this" ]
-                                        , button
-                                            [ class "button", title "Add on all articles with this phrase", onClick (AddAll pt) ]
-                                            [ text "Add all" ]
-                                        , button
-                                            [ class "button", title "Remove this suggestion", onClick (RemoveSuggested pt) ]
-                                            [ text "Remove" ]
-                                        ]
                                     ]
-                            )
-                     )
-                        ++ [ div [ class "tagedit-tag-row" ]
-                                [ div
-                                    [ class "tagedit-tag" ]
-                                    [ input
-                                        [ type_ "text"
-                                        , class "tagedit-input"
-                                        , value ""
-                                        , placeholder "Add tag"
-                                        , onInput AddNewSuggestion
+                               ]
+                        )
+                    ]
+                , div [ class "tagedit-tags-container" ]
+                    [ h2 [] [ text "Tag Changes" ]
+                    , div
+                        [ class "tagedit-tags" ]
+                        (model.actions
+                            |> List.map
+                                (\action ->
+                                    let
+                                        undo =
+                                            span [ class "tagedit-buttons" ]
+                                                [ button [ class "button", onClick (UndoAction action) ]
+                                                    [ text "Undo" ]
+                                                ]
+                                    in
+                                    div [ class "tagedit-tag-row" ]
+                                        [ case action of
+                                            AddThis_ tag ->
+                                                div [ style "display" "flex" ]
+                                                    [ div
+                                                        [ class "tagedit-tag" ]
+                                                        [ text tag ]
+                                                    , div
+                                                        [ title "Add tag to this article" ]
+                                                        [ FA.render "icon icon-green" FA.AddOne ]
+                                                    , undo
+                                                    ]
+
+                                            AddAll_ tag ->
+                                                div [ style "display" "flex" ]
+                                                    [ div
+                                                        [ class "tagedit-tag" ]
+                                                        [ text tag ]
+                                                    , div
+                                                        [ title "Add tag to all matching articles" ]
+                                                        [ FA.render "icon icon-green" FA.AddMany ]
+                                                    , undo
+                                                    ]
+
+                                            DeleteThis_ tag ->
+                                                div [ style "display" "flex" ]
+                                                    [ div
+                                                        [ class "tagedit-tag" ]
+                                                        [ text tag.tag ]
+                                                    , div
+                                                        [ title "Remove tag from this article" ]
+                                                        [ FA.render "icon icon-red" FA.DeleteOne ]
+                                                    , undo
+                                                    ]
+
+                                            DeleteAll_ tag ->
+                                                div [ style "display" "flex" ]
+                                                    [ div
+                                                        [ class "tagedit-tag" ]
+                                                        [ text tag.tag ]
+                                                    , div
+                                                        [ title "Remove tag from all articles" ]
+                                                        [ FA.render "icon icon-red" FA.DeleteMany ]
+                                                    , undo
+                                                    ]
                                         ]
-                                        []
-                                    ]
-                                ]
-                           ]
-                    )
+                                )
+                        )
+                    ]
                 ]
-            , div [ class "tagedit-tags-container" ]
-                [ h2 [] [ text "Tag Changes" ]
-                , div
-                    [ class "tagedit-tags" ]
-                    (model.actions
-                        |> List.map
-                            (\action ->
-                                let
-                                    undo =
-                                        span [ class "tagedit-buttons" ]
-                                            [ button [ class "button", onClick (UndoAction action) ]
-                                                [ text "Undo" ]
-                                            ]
-                                in
-                                div [ class "tagedit-tag-row" ]
-                                    [ case action of
-                                        AddThis_ tag ->
-                                            div [ style "display" "flex" ]
-                                                [ div
-                                                    [ class "tagedit-tag" ]
-                                                    [ text tag ]
-                                                , div
-                                                    [ title "Add tag to this article" ]
-                                                    [ FA.render "icon icon-green" FA.AddOne ]
-                                                , undo
-                                                ]
-
-                                        AddAll_ tag ->
-                                            div [ style "display" "flex" ]
-                                                [ div
-                                                    [ class "tagedit-tag" ]
-                                                    [ text tag ]
-                                                , div
-                                                    [ title "Add tag to all matching articles" ]
-                                                    [ FA.render "icon icon-green" FA.AddMany ]
-                                                , undo
-                                                ]
-
-                                        DeleteThis_ tag ->
-                                            div [ style "display" "flex" ]
-                                                [ div
-                                                    [ class "tagedit-tag" ]
-                                                    [ text tag.tag ]
-                                                , div
-                                                    [ title "Remove tag from this article" ]
-                                                    [ FA.render "icon icon-red" FA.DeleteOne ]
-                                                , undo
-                                                ]
-
-                                        DeleteAll_ tag ->
-                                            div [ style "display" "flex" ]
-                                                [ div
-                                                    [ class "tagedit-tag" ]
-                                                    [ text tag.tag ]
-                                                , div
-                                                    [ title "Remove tag from all articles" ]
-                                                    [ FA.render "icon icon-red" FA.DeleteMany ]
-                                                , undo
-                                                ]
-                                    ]
-                            )
-                    )
+            , div
+                [ class "button-row" ]
+                [ button [ class "button", onClick OnCancel ] [ text "Cancel" ]
+                , button [ class "button", onClick OnSave ] [ text "Save" ]
                 ]
             ]
-        , div
-            [ class "button-row" ]
-            [ button [ class "button", onClick OnCancel ] [ text "Cancel" ]
-            , button [ class "button", onClick OnSave ] [ text "Save" ]
-            ]
+        , if model.saving then
+            Spinner.spinner
+
+          else
+            text ""
         ]
         |> Html.map tagger

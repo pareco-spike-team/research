@@ -10,6 +10,7 @@ type Icon
     | DeleteOne
     | AddOne
     | AddMany
+    | Spinner
 
 
 render : String -> Icon -> Html msg
@@ -30,6 +31,9 @@ render classes icon =
 
             AddMany ->
                 String.join " " [ "fas fa-exclamation-circle", classes ]
+
+            Spinner ->
+                String.join " " [ "fas fa-space-shuttle", classes ]
 
 
 wrap : String -> Html msg

@@ -61,6 +61,32 @@ html *
 	color: red;
 }
 
+.blur-it {
+	filter: blur(2px);
+}
+
+.spinner-on-top {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	justify-content: center;
+	display: flex;
+	padding-top: 10rem;
+}
+
+.spinner {
+	font-size: 4rem;
+	height: 12rem;
+	animation:spin 2s linear infinite
+}
+
+.spinner--delayed {
+	animation-delay: 1s;
+}
+
+@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+
 .box-shadow {
 	background-color: #181A1E;
 	padding: 0rem 0.2rem 0.2rem 0.2rem;
@@ -150,7 +176,6 @@ html *
 
 .tagedit-container {
 	margin: 1rem;
-
 }
 
 .tagedit-tags-container {
@@ -213,3 +238,4 @@ html *
 #dummy:hover {
 	stroke: tint(rgb(165, 171, 182), 20%)
 }
+
