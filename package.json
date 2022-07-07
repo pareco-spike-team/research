@@ -27,7 +27,7 @@
     "express": "~4.17.1",
     "express-session": "~1.17.1",
     "helmet": "~3.16.0",
-    "moment": "~2.27.0",
+    "moment": "~2.29.4",
     "morgan": "~1.9.1",
     "neo4j-driver": "~1.7.7",
     "p3p": "~0.0.2",
