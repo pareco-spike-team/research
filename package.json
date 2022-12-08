@@ -31,7 +31,7 @@
     "morgan": "~1.9.1",
     "neo4j-driver": "~1.7.7",
     "p3p": "~0.0.2",
-    "qs": "~6.9.4",
+    "qs": "~6.9.7",
     "shortid": "~2.2.14"
   },
   "devDependencies": {
